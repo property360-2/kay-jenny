@@ -1,0 +1,941 @@
+{% extends 'base.html' %}
+
+{% block title %}Orders - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Orders</h1>
+            <p class="mt-1 text-sm text-gray-500">View and manage all orders</p>
+        </div>
+        <div>
+            <a href="{% url 'orders:pos_home' %}" class="bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-4 rounded-lg transition">
+                + New Order
+            </a>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Search -->
+            <div class="md:col-span-2">
+                <label for="search-input" class="block text-sm font-medium text-gray-700 mb-2">Search Orders</label>
+                <input type="text" id="search-input" placeholder="Search by order number, customer name, or table..." value="{{ search }}"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
+            </div>
+
+            <!-- Status Filter -->
+            <div>
+                <label for="status-filter" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select id="status-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
+                    <option value="">All Status</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Time Range Filters -->
+        <div class="mt-6 pt-4 border-t border-gray-200">
+            <p class="text-sm font-medium text-gray-700 mb-3">Filter by Date Range</p>
+            <div class="flex flex-wrap gap-2">
+                <button class="time-filter-btn px-4 py-2 rounded-lg font-medium transition {% if time_range == 'all' %}bg-fjc-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}" data-time-range="all">
+                    All Time
+                </button>
+                <button class="time-filter-btn px-4 py-2 rounded-lg font-medium transition {% if time_range == '1day' %}bg-fjc-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}" data-time-range="1day">
+                    Last 24 Hours
+                </button>
+                <button class="time-filter-btn px-4 py-2 rounded-lg font-medium transition {% if time_range == '7day' %}bg-fjc-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}" data-time-range="7day">
+                    Last 7 Days
+                </button>
+                <button class="time-filter-btn px-4 py-2 rounded-lg font-medium transition {% if time_range == '30day' %}bg-fjc-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}" data-time-range="30day">
+                    Last 30 Days
+                </button>
+                <button class="time-filter-btn px-4 py-2 rounded-lg font-medium transition {% if time_range == '60day' %}bg-fjc-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}" data-time-range="60day">
+                    Last 60 Days
+                </button>
+                <button class="time-filter-btn px-4 py-2 rounded-lg font-medium transition {% if time_range == '90day' %}bg-fjc-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}" data-time-range="90day">
+                    Last 90 Days
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Info -->
+        <div class="mt-4 flex items-center justify-between">
+            <p class="text-sm text-gray-600">
+                Showing <span id="results-count" class="font-semibold">{{ page_obj.paginator.count }}</span> order{{ page_obj.paginator.count|pluralize }}
+            </p>
+            <button id="clear-filters-btn" class="text-sm text-fjc-blue-600 hover:text-fjc-blue-700 font-medium {% if not search and not status_filter and time_range == 'all' %}hidden{% endif %}">
+                Clear Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="orders-loading" class="hidden">
+        <div class="flex justify-center items-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-fjc-blue-500"></div>
+        </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div id="orders-container">
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+            {% if orders %}
+            <!-- Desktop Table View (hidden on mobile) -->
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Order ID</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Customer</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Table</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Items</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Total</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200" id="orders-tbody">
+                        {% for order in orders %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4">
+                                <span class="font-semibold text-gray-900">{{ order.order_number }}</span>
+                            </td>
+                            <td class="px-6 py-4 text-gray-600">{{ order.customer_name }}</td>
+                            <td class="px-6 py-4 text-gray-600">{{ order.table_number|default:"-" }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-600">
+                                {% for item in order.items.all|slice:":2" %}
+                                    {{ item.quantity }}x {{ item.product.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                                {% if order.items.count > 2 %}
+                                    , +{{ order.items.count|add:"-2" }} more
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 font-medium text-fjc-blue-600">₱{{ order.total_amount }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-600">{{ order.created_at|date:"M d, Y g:i A" }}</td>
+                            <td class="px-6 py-4">
+                                {% if order.status == 'PENDING' %}
+                                {% include 'components/atoms/badge.html' with type='warning' text='Pending' %}
+                                {% elif order.status == 'IN_PROGRESS' %}
+                                {% include 'components/atoms/badge.html' with type='info' text='In Progress' %}
+                                {% elif order.status == 'FINISHED' %}
+                                {% include 'components/atoms/badge.html' with type='success' text='Completed' %}
+                                {% elif order.status == 'CANCELLED' %}
+                                {% include 'components/atoms/badge.html' with type='danger' text='Cancelled' %}
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 space-x-2 flex">
+                                {% if order.status == 'PENDING' %}
+                                    <button onclick="openPaymentModal({{ order.pk }}, {{ order.total_amount }})" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition flex items-center gap-1">
+                                        <span class="material-icons text-sm">money</span> Pay
+                                    </button>
+                                {% elif order.status == 'IN_PROGRESS' %}
+                                    <button onclick="markOrderCompleted({{ order.pk }})" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition flex items-center gap-1">
+                                        <span class="material-icons text-sm">check_circle</span> Done
+                                    </button>
+                                {% elif order.status == 'FINISHED' %}
+                                    <button onclick="archiveOrder({{ order.pk }})" class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition flex items-center gap-1">
+                                        <span class="material-icons text-sm">archive</span> Archive
+                                    </button>
+                                {% endif %}
+                                <a href="{% url 'orders:detail' order.pk %}" class="bg-fjc-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-fjc-blue-700 transition flex items-center gap-1">
+                                    <span class="material-icons text-sm">visibility</span> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Card View (shown only on mobile) -->
+            <div class="md:hidden divide-y divide-gray-200" id="orders-cards">
+                {% for order in orders %}
+                <div class="p-4 hover:bg-gray-50 transition">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <p class="font-semibold text-gray-900 text-lg">{{ order.order_number }}</p>
+                            <p class="text-sm text-gray-600 mt-1">{{ order.customer_name }}</p>
+                        </div>
+                        <div>
+                            {% if order.status == 'PENDING' %}
+                            {% include 'components/atoms/badge.html' with type='warning' text='Pending' %}
+                            {% elif order.status == 'IN_PROGRESS' %}
+                            {% include 'components/atoms/badge.html' with type='info' text='In Progress' %}
+                            {% elif order.status == 'FINISHED' %}
+                            {% include 'components/atoms/badge.html' with type='success' text='Completed' %}
+                            {% elif order.status == 'CANCELLED' %}
+                            {% include 'components/atoms/badge.html' with type='danger' text='Cancelled' %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="space-y-2 mb-3">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Table:</span>
+                            <span class="text-gray-900">{{ order.table_number|default:"-" }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Items:</span>
+                            <span class="text-gray-900 text-right">
+                                {% for item in order.items.all|slice:":2" %}
+                                    {{ item.quantity }}x {{ item.product.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                                {% if order.items.count > 2 %}
+                                    , +{{ order.items.count|add:"-2" }} more
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Total:</span>
+                            <span class="font-semibold text-fjc-blue-600">₱{{ order.total_amount }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Date:</span>
+                            <span class="text-gray-900">{{ order.created_at|date:"M d, Y g:i A" }}</span>
+                        </div>
+                    </div>
+                    <a href="{% url 'orders:detail' order.pk %}" class="block w-full text-center bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-4 rounded-lg transition">
+                        View Details
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.paginator.num_pages > 1 %}
+            <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between" id="pagination-container">
+                <p class="text-sm text-gray-600">
+                    Page <span class="font-semibold">{{ page_obj.number }}</span> of <span class="font-semibold">{{ page_obj.paginator.num_pages }}</span>
+                </p>
+                <div class="flex gap-2">
+                    <button id="prev-page-btn" data-page="{% if page_obj.has_previous %}{{ page_obj.previous_page_number }}{% endif %}"
+                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition {% if not page_obj.has_previous %}opacity-50 cursor-not-allowed{% endif %}"
+                            {% if not page_obj.has_previous %}disabled{% endif %}>
+                        Previous
+                    </button>
+                    <button id="next-page-btn" data-page="{% if page_obj.has_next %}{{ page_obj.next_page_number }}{% endif %}"
+                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition {% if not page_obj.has_next %}opacity-50 cursor-not-allowed{% endif %}"
+                            {% if not page_obj.has_next %}disabled{% endif %}>
+                        Next
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="p-12 text-center">
+                <span class="text-6xl mb-4 block">📋</span>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">No orders found</h3>
+                <p class="text-gray-500 mb-6">Try adjusting your filters or create a new order</p>
+                {% if search or status_filter %}
+                <button id="clear-all-btn" class="bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                    Clear Filters
+                </button>
+                {% else %}
+                <a href="{% url 'orders:pos_create_order' %}" class="inline-block bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                    Create Order
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Include Toast Component -->
+{% include 'components/toast.html' %}
+
+<!-- Enhanced Payment Modal -->
+<div id="payment-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-3xl font-bold text-gray-900">💳 Process Payment</h2>
+            <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600 text-2xl transition"><span class="material-icons">cancel</span></button>
+        </div>
+
+        <input type="hidden" id="payment-order-id">
+
+        <!-- Order Amount Card -->
+        <div class="bg-gradient-to-r from-fjc-blue-50 to-fjc-blue-100 p-5 rounded-xl mb-6 border border-fjc-blue-200">
+            <p class="text-sm text-gray-600 mb-1">Order Total</p>
+            <p id="order-amount-display" class="text-4xl font-bold text-fjc-blue-600">₱0.00</p>
+        </div>
+
+        <!-- Cash Received Input -->
+        <div class="mb-6">
+            <label for="cash-amount-input" class="block text-sm font-semibold text-gray-800 mb-3">Cash Received from Customer</label>
+            <div class="relative">
+                <span class="absolute left-4 top-3 text-2xl text-gray-400">₱</span>
+                <input type="number" id="cash-amount-input" placeholder="0.00" step="0.01" min="0"
+                       class="w-full pl-8 pr-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500 transition font-semibold"
+                       autocomplete="off">
+            </div>
+        </div>
+
+        <!-- Change Display Card -->
+        <div id="change-card" class="bg-gradient-to-r from-green-50 to-green-100 p-5 rounded-xl mb-6 border-2 border-green-200">
+            <p class="text-sm text-gray-600 mb-2">Change</p>
+            <p id="change-amount" class="text-4xl font-bold text-green-600">₱0.00</p>
+        </div>
+
+        <!-- Loading State (hidden by default) -->
+        <div id="payment-loading" class="hidden mb-6 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-fjc-blue-500 mx-auto mb-3"></div>
+            <p class="text-gray-600 font-medium">Processing payment...</p>
+        </div>
+
+        <!-- Error Message (hidden by default) -->
+        <div id="payment-error" class="hidden mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p id="error-message" class="text-red-600 text-sm font-medium"></p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 pt-4">
+            <button onclick="closePaymentModal()" id="cancel-payment-btn" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-4 rounded-lg transition">
+                Cancel
+            </button>
+            <button id="confirm-payment-btn" onclick="processQuickPayment()" disabled class="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition">
+                <span class="material-icons">check_circle</span> Confirm Payment
+            </button>
+        </div>
+
+        <!-- Keyboard Hint -->
+        <p class="text-xs text-gray-400 text-center mt-4">Press Enter to confirm, Esc to cancel</p>
+    </div>
+</div>
+
+<!-- Modern Confirmation Modal -->
+<div id="confirmation-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 transform transition-all">
+        <!-- Icon -->
+        <div class="flex justify-center mb-4">
+            <div id="confirmation-icon" class="text-5xl">❓</div>
+        </div>
+
+        <!-- Title and Message -->
+        <h2 id="confirmation-title" class="text-2xl font-bold text-gray-900 text-center mb-2">Confirm Action</h2>
+        <p id="confirmation-message" class="text-gray-600 text-center mb-6">Are you sure you want to proceed?</p>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+            <button onclick="closeConfirmationModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-4 rounded-lg transition">
+                Cancel
+            </button>
+            <button id="confirmation-btn" class="flex-1 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition">
+                Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Debounce function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Load orders with filters
+async function loadOrders(page = 1) {
+    const searchInput = document.getElementById('search-input');
+    const statusFilter = document.getElementById('status-filter');
+    const ordersContainer = document.getElementById('orders-container');
+    const loadingEl = document.getElementById('orders-loading');
+
+    // Get current time_range from active button
+    const activeTimeFilterBtn = document.querySelector('.time-filter-btn.bg-fjc-blue-600');
+    const timeRange = activeTimeFilterBtn ? activeTimeFilterBtn.dataset.timeRange : 'all';
+
+    // Build query string
+    const params = new URLSearchParams();
+    if (searchInput.value) params.append('search', searchInput.value);
+    if (statusFilter.value) params.append('status', statusFilter.value);
+    if (timeRange !== 'all') params.append('time_range', timeRange);
+    params.append('page', page);
+
+    // Show loading
+    loadingEl.classList.remove('hidden');
+    ordersContainer.classList.add('opacity-50');
+
+    try {
+        const response = await fetch(`/orders/?${params.toString()}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            renderOrders(data.orders, data.pagination);
+            updateResultsCount(data.pagination.total_count);
+            updateClearButton();
+        } else {
+            Toast.error('Failed to load orders');
+        }
+    } catch (error) {
+        Toast.error('Network error. Please try again.');
+    } finally {
+        loadingEl.classList.add('hidden');
+        ordersContainer.classList.remove('opacity-50');
+    }
+}
+
+// Render orders
+function renderOrders(orders, pagination) {
+    const container = document.getElementById('orders-container');
+
+    if (orders.length === 0) {
+        container.innerHTML = `
+            <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                <div class="p-12 text-center">
+                    <span class="text-6xl mb-4 block">📋</span>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">No orders found</h3>
+                    <p class="text-gray-500 mb-6">Try adjusting your filters</p>
+                    <button onclick="clearAllFilters()" class="bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+            <!-- Desktop Table View -->
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Order ID</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Customer</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Table</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Items</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Total</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+    `;
+
+    // Table rows for desktop
+    orders.forEach(order => {
+        // Determine status badge
+        let badgeHtml = '';
+        switch(order.status) {
+            case 'PENDING':
+                badgeHtml = '<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-1 rounded">Pending</span>';
+                break;
+            case 'IN_PROGRESS':
+                badgeHtml = '<span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded">In Progress</span>';
+                break;
+            case 'FINISHED':
+                badgeHtml = '<span class="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">Completed</span>';
+                break;
+            case 'CANCELLED':
+                badgeHtml = '<span class="inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">Cancelled</span>';
+                break;
+        }
+
+        html += `
+            <tr class="hover:bg-gray-50 transition">
+                <td class="px-6 py-4">
+                    <span class="font-semibold text-gray-900">${order.order_number}</span>
+                </td>
+                <td class="px-6 py-4 text-gray-600">${order.customer_name}</td>
+                <td class="px-6 py-4 text-gray-600">${order.table_number}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">${order.items_summary}</td>
+                <td class="px-6 py-4 font-medium text-fjc-blue-600">₱${order.total_amount}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">${order.created_at}</td>
+                <td class="px-6 py-4">${badgeHtml}</td>
+                <td class="px-6 py-4">
+                    <a href="/orders/${order.id}/" class="text-fjc-blue-600 hover:text-fjc-blue-700 font-medium text-sm">
+                        View
+                    </a>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Card View -->
+            <div class="md:hidden divide-y divide-gray-200">
+    `;
+
+    // Card view for mobile
+    orders.forEach(order => {
+        let badgeHtml = '';
+        switch(order.status) {
+            case 'PENDING':
+                badgeHtml = '<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-1 rounded">Pending</span>';
+                break;
+            case 'IN_PROGRESS':
+                badgeHtml = '<span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded">In Progress</span>';
+                break;
+            case 'FINISHED':
+                badgeHtml = '<span class="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">Completed</span>';
+                break;
+            case 'CANCELLED':
+                badgeHtml = '<span class="inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">Cancelled</span>';
+                break;
+        }
+
+        html += `
+            <div class="p-4 hover:bg-gray-50 transition">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <p class="font-semibold text-gray-900 text-lg">${order.order_number}</p>
+                        <p class="text-sm text-gray-600 mt-1">${order.customer_name}</p>
+                    </div>
+                    <div>${badgeHtml}</div>
+                </div>
+                <div class="space-y-2 mb-3">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Table:</span>
+                        <span class="text-gray-900">${order.table_number}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Items:</span>
+                        <span class="text-gray-900 text-right">${order.items_summary}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Total:</span>
+                        <span class="font-semibold text-fjc-blue-600">₱${order.total_amount}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Date:</span>
+                        <span class="text-gray-900">${order.created_at}</span>
+                    </div>
+                </div>
+                <a href="/orders/${order.id}/" class="block w-full text-center bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-4 rounded-lg transition">
+                    View Details
+                </a>
+            </div>
+        `;
+    });
+
+    html += `
+            </div>
+    `;
+
+    // Add pagination
+    if (pagination.total_pages > 1) {
+        html += `
+            <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                <p class="text-sm text-gray-600">
+                    Page <span class="font-semibold">${pagination.current_page}</span> of <span class="font-semibold">${pagination.total_pages}</span>
+                </p>
+                <div class="flex gap-2">
+                    <button id="prev-page-btn" data-page="${pagination.previous_page || ''}"
+                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition ${!pagination.has_previous ? 'opacity-50 cursor-not-allowed' : ''}"
+                            ${!pagination.has_previous ? 'disabled' : ''}>
+                        Previous
+                    </button>
+                    <button id="next-page-btn" data-page="${pagination.next_page || ''}"
+                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition ${!pagination.has_next ? 'opacity-50 cursor-not-allowed' : ''}"
+                            ${!pagination.has_next ? 'disabled' : ''}>
+                        Next
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    html += '</div>';
+
+    container.innerHTML = html;
+
+    // Attach pagination event listeners
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+
+    if (prevBtn && !prevBtn.disabled) {
+        prevBtn.addEventListener('click', () => loadOrders(pagination.previous_page));
+    }
+    if (nextBtn && !nextBtn.disabled) {
+        nextBtn.addEventListener('click', () => loadOrders(pagination.next_page));
+    }
+}
+
+// Update results count
+function updateResultsCount(count) {
+    const countEl = document.getElementById('results-count');
+    if (countEl) countEl.textContent = count;
+}
+
+// Update clear button visibility
+function updateClearButton() {
+    const searchInput = document.getElementById('search-input');
+    const statusFilter = document.getElementById('status-filter');
+    const clearBtn = document.getElementById('clear-filters-btn');
+    const activeTimeFilterBtn = document.querySelector('.time-filter-btn.bg-fjc-blue-600');
+    const timeRange = activeTimeFilterBtn ? activeTimeFilterBtn.dataset.timeRange : 'all';
+
+    const hasFilters = searchInput.value || statusFilter.value || timeRange !== 'all';
+    if (clearBtn) {
+        if (hasFilters) {
+            clearBtn.classList.remove('hidden');
+        } else {
+            clearBtn.classList.add('hidden');
+        }
+    }
+}
+
+// Clear all filters
+function clearAllFilters() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('status-filter').value = '';
+
+    // Reset time filter buttons to "All Time"
+    const timeFilterBtns = document.querySelectorAll('.time-filter-btn');
+    timeFilterBtns.forEach(btn => {
+        if (btn.dataset.timeRange === 'all') {
+            btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            btn.classList.add('bg-fjc-blue-600', 'text-white');
+        } else {
+            btn.classList.remove('bg-fjc-blue-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+        }
+    });
+
+    loadOrders(1);
+}
+
+// Quick Action Functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white font-semibold shadow-lg ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// Open confirmation modal
+function openConfirmationModal(title, message, icon, onConfirm) {
+    const modal = document.getElementById('confirmation-modal');
+    document.getElementById('confirmation-title').textContent = title;
+    document.getElementById('confirmation-message').textContent = message;
+    document.getElementById('confirmation-icon').textContent = icon;
+
+    // Set the confirmation button action
+    const confirmBtn = document.getElementById('confirmation-btn');
+    confirmBtn.onclick = () => {
+        closeConfirmationModal();
+        onConfirm();
+    };
+
+    // Close on backdrop click
+    modal.onclick = function(event) {
+        if (event.target === modal) {
+            closeConfirmationModal();
+        }
+    };
+
+    modal.classList.remove('hidden');
+}
+
+// Close confirmation modal
+function closeConfirmationModal() {
+    document.getElementById('confirmation-modal').classList.add('hidden');
+}
+
+// Mark order as completed
+function markOrderCompleted(orderId) {
+    openConfirmationModal(
+        '<span class="material-icons">check_circle</span> Mark as Completed?',
+        'This will mark the order as finished and completed.',
+        '<span class="material-icons">check_circle</span>',
+        () => {
+            fetch(`/orders/${orderId}/update-status/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ status: 'FINISHED' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Order completed!');
+                    // Reload orders without page reload
+                    loadOrders(1);
+                } else {
+                    showToast(data.message || 'Error updating order', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Error: ' + error.message, 'error');
+            });
+        }
+    );
+}
+
+// Archive order
+function archiveOrder(orderId) {
+    openConfirmationModal(
+        ' Archive Order?',
+        'This order will be moved to archives and hidden from the main list.',
+        '📦',
+        () => {
+            fetch(`/orders/${orderId}/archive/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Order archived!');
+                    // Reload orders without page reload
+                    loadOrders(1);
+                } else {
+                    showToast(data.message || 'Error archiving order', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Error: ' + error.message, 'error');
+            });
+        }
+    );
+}
+
+// Open payment modal
+function openPaymentModal(orderId, orderAmount) {
+    const modal = document.getElementById('payment-modal');
+    const amountInput = document.getElementById('cash-amount-input');
+    const orderIdInput = document.getElementById('payment-order-id');
+    const orderAmountDisplay = document.getElementById('order-amount-display');
+    const errorDiv = document.getElementById('payment-error');
+
+    // Clear previous error messages
+    errorDiv.classList.add('hidden');
+    document.getElementById('error-message').textContent = '';
+
+    // Set order amount and order ID
+    orderAmountDisplay.textContent = `₱${parseFloat(orderAmount).toFixed(2)}`;
+    orderIdInput.value = orderId;
+    amountInput.value = orderAmount;
+    amountInput.focus();
+
+    // Show modal
+    modal.classList.remove('hidden');
+    updateChangeDisplay();
+}
+
+// Close payment modal
+function closePaymentModal() {
+    const modal = document.getElementById('payment-modal');
+    const errorDiv = document.getElementById('payment-error');
+    const loadingDiv = document.getElementById('payment-loading');
+
+    // Hide error and loading states
+    errorDiv.classList.add('hidden');
+    loadingDiv.classList.add('hidden');
+
+    // Hide modal
+    modal.classList.add('hidden');
+}
+
+// Update change display
+function updateChangeDisplay() {
+    const amountInput = document.getElementById('cash-amount-input');
+    const changeCard = document.getElementById('change-card');
+    const changeAmount = document.getElementById('change-amount');
+    const confirmBtn = document.getElementById('confirm-payment-btn');
+    const orderAmount = parseFloat(document.getElementById('order-amount-display').textContent.replace('₱', '')) || 0;
+    const cashAmount = parseFloat(amountInput.value) || 0;
+    const change = cashAmount - orderAmount;
+
+    if (change >= 0) {
+        // Sufficient cash - show green
+        changeCard.className = 'bg-gradient-to-r from-green-50 to-green-100 p-5 rounded-xl mb-6 border-2 border-green-200';
+        changeAmount.className = 'text-4xl font-bold text-green-600';
+        changeAmount.textContent = `₱${change.toFixed(2)}`;
+        confirmBtn.disabled = false;
+    } else {
+        // Insufficient cash - show red
+        changeCard.className = 'bg-gradient-to-r from-red-50 to-red-100 p-5 rounded-xl mb-6 border-2 border-red-200';
+        changeAmount.className = 'text-lg font-bold text-red-600';
+        changeAmount.textContent = `Insufficient: ₱${Math.abs(change).toFixed(2)} short`;
+        confirmBtn.disabled = true;
+    }
+}
+
+// Process quick payment
+function processQuickPayment() {
+    const orderId = document.getElementById('payment-order-id').value;
+    const cashAmount = parseFloat(document.getElementById('cash-amount-input').value);
+    const orderAmount = parseFloat(document.getElementById('order-amount-display').textContent.replace('₱', ''));
+
+    if (!cashAmount || cashAmount <= 0) {
+        showToast('Invalid amount', 'error');
+        return;
+    }
+
+    if (cashAmount < orderAmount) {
+        showToast('Insufficient cash amount', 'error');
+        return;
+    }
+
+    // Show loading state
+    const loadingDiv = document.getElementById('payment-loading');
+    const confirmBtn = document.getElementById('confirm-payment-btn');
+    const cancelBtn = document.getElementById('cancel-payment-btn');
+    const errorDiv = document.getElementById('payment-error');
+
+    loadingDiv.classList.remove('hidden');
+    confirmBtn.disabled = true;
+    cancelBtn.disabled = true;
+    errorDiv.classList.add('hidden');
+
+    fetch(`/orders/${orderId}/quick-payment/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ cash_amount: cashAmount })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closePaymentModal();
+            showToast('Payment processed!');
+            // Reload orders without page reload
+            loadOrders(1);
+        } else {
+            // Show error message in modal
+            loadingDiv.classList.add('hidden');
+            errorDiv.classList.remove('hidden');
+            document.getElementById('error-message').textContent = data.message || 'Error processing payment';
+            confirmBtn.disabled = false;
+            cancelBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        // Show error message in modal
+        loadingDiv.classList.add('hidden');
+        errorDiv.classList.remove('hidden');
+        document.getElementById('error-message').textContent = 'Error: ' + error.message;
+        confirmBtn.disabled = false;
+        cancelBtn.disabled = false;
+    });
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-input');
+    const statusFilter = document.getElementById('status-filter');
+    const clearBtn = document.getElementById('clear-filters-btn');
+    const clearAllBtn = document.getElementById('clear-all-btn');
+
+    // Search with debounce
+    searchInput.addEventListener('input', debounce(() => loadOrders(1), 500));
+
+    // Filter
+    statusFilter.addEventListener('change', () => loadOrders(1));
+
+    // Time range filter buttons
+    const timeFilterBtns = document.querySelectorAll('.time-filter-btn');
+    timeFilterBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            // Update button styles
+            timeFilterBtns.forEach(b => {
+                b.classList.remove('bg-fjc-blue-600', 'text-white');
+                b.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            });
+            this.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            this.classList.add('bg-fjc-blue-600', 'text-white');
+
+            // Load orders with new filter
+            loadOrders(1);
+            updateClearButton();
+        });
+    });
+
+    // Clear buttons
+    if (clearBtn) clearBtn.addEventListener('click', clearAllFilters);
+    if (clearAllBtn) clearAllBtn.addEventListener('click', clearAllFilters);
+
+    // Pagination buttons (for initial load)
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+
+    if (prevBtn && !prevBtn.disabled) {
+        prevBtn.addEventListener('click', () => loadOrders(prevBtn.dataset.page));
+    }
+    if (nextBtn && !nextBtn.disabled) {
+        nextBtn.addEventListener('click', () => loadOrders(nextBtn.dataset.page));
+    }
+
+    // Payment modal input listener
+    const amountInput = document.getElementById('cash-amount-input');
+    if (amountInput) {
+        amountInput.addEventListener('input', updateChangeDisplay);
+
+        // Keyboard support for payment modal
+        amountInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && !document.getElementById('confirm-payment-btn').disabled) {
+                processQuickPayment();
+            } else if (event.key === 'Escape') {
+                closePaymentModal();
+            }
+        });
+    }
+
+    // Close modals on Escape key anywhere
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const paymentModal = document.getElementById('payment-modal');
+            const confirmationModal = document.getElementById('confirmation-modal');
+
+            if (paymentModal && !paymentModal.classList.contains('hidden')) {
+                closePaymentModal();
+            }
+            if (confirmationModal && !confirmationModal.classList.contains('hidden')) {
+                closeConfirmationModal();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

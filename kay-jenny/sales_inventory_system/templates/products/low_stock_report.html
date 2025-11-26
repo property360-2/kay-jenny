@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Low Stock Report - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Low Stock Engridient Report</h1>
+            <p class="mt-1 text-sm text-gray-500">Ingredients below minimum stock level</p>
+        </div>
+        <a href="{% url 'products:bom_dashboard' %}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-sm">
+            ← Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Alert -->
+    {% if total_count > 0 %}
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+        <div class="flex items-start">
+            <span class="text-2xl mr-3"><span class="material-icons">warning</span></span>
+            <div>
+                <p class="text-sm font-semibold text-red-800">{{ total_count }} ingredient{{ total_count|pluralize }} need{{ total_count|pluralize }} to be reordered</p>
+                <p class="text-sm text-red-700 mt-1">Total inventory value: <strong>₱{{ total_value|floatformat:2 }}</strong></p>
+                {% if recent_purchases > 0 %}
+                <p class="text-sm text-red-700">{{ recent_purchases }} purchase{{ recent_purchases|pluralize }} made this week</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-600 mb-2">Low Stock Items</p>
+            <p class="text-3xl font-bold text-red-600">{{ total_count }}</p>
+            <p class="text-xs text-gray-600 mt-2">Ingredients below minimum</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-600 mb-2">Total Inventory Value</p>
+            <p class="text-3xl font-bold text-orange-600">₱{{ total_value|floatformat:2 }}</p>
+            <p class="text-xs text-gray-600 mt-2">Value of low stock items</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-600 mb-2">Recent Purchases</p>
+            <p class="text-3xl font-bold text-blue-600">{{ recent_purchases }}</p>
+            <p class="text-xs text-gray-600 mt-2">Purchases in the last 7 days</p>
+        </div>
+    </div>
+
+    <!-- Low Stock Ingredients Table -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">All Low Stock Ingredients</h2>
+        </div>
+        {% if low_stock_ingredients %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Ingredient</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Current Stock</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Min Stock</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit Cost</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Stock Value</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for ingredient in low_stock_ingredients %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">
+                            <div>{{ ingredient.name }}</div>
+                            <div class="text-xs text-gray-600 mt-1">Unit: {{ ingredient.unit }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-right">
+                            <span class="font-semibold text-red-600">{{ ingredient.current_stock|floatformat:2 }}</span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-700">{{ ingredient.min_stock|floatformat:2 }}</td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-700">₱{{ ingredient.cost_per_unit|floatformat:2 }}</td>
+                        <td class="px-6 py-4 text-sm text-right font-semibold text-gray-900">
+                            ₱{{ ingredient.current_stock|multiply:ingredient.cost_per_unit|floatformat:2 }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-center">
+                            {% if ingredient.current_stock == 0 %}
+                            <span class="inline-block px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-800">Out of Stock</span>
+                            {% else %}
+                            <span class="inline-block px-2 py-1 rounded text-xs font-semibold bg-yellow-100 text-yellow-800">Low Stock</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-6 py-12 text-center">
+            <span class="text-6xl mb-4 block"><span class="material-icons">check_circle</span></span>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">All Ingredients Well Stocked</h3>
+            <p class="text-gray-600">No ingredients are currently below minimum stock level</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Action Items -->
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+        <div class="flex items-start">
+            <span class="text-2xl mr-3">📋</span>
+            <div>
+                <h3 class="font-semibold text-blue-900 mb-2">Action Items</h3>
+                <ul class="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                    {% if total_count > 0 %}
+                    <li>Create purchase orders for {{ total_count }} ingredient{{ total_count|pluralize }}</li>
+                    <li>Contact suppliers to expedite delivery</li>
+                    <li>Monitor usage rates to prevent stockouts</li>
+                    <li>Consider increasing minimum stock levels for high-usage items</li>
+                    {% else %}
+                    <li>Inventory levels are healthy</li>
+                    <li>Continue monitoring to prevent stockouts</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom template filters -->
+<script type="text/javascript">
+// This is a workaround since Django doesn't have a built-in multiply filter
+// Calculations are done in the template but we'll display them correctly
+</script>
+{% endblock %}

@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+
+{% block title %}Ingredients Management - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Ingredients Management</h1>
+            <p class="mt-1 text-sm text-gray-500">Toggle ingredient availability for POS</p>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+        <div class="flex gap-4">
+            <div class="flex-1">
+                <input type="text" id="searchInput" placeholder="Search ingredients by name, unit..."
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500"
+                       onkeyup="filterIngredients()">
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="hidden">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+            <div class="animate-spin h-5 w-5 border-2 border-fjc-blue-500 border-t-transparent rounded-full"></div>
+            <span class="text-blue-600">Loading ingredients...</span>
+        </div>
+    </div>
+
+    <!-- Ingredients Grid -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+        <!-- Desktop Table View -->
+        <div id="desktopView" class="hidden md:block overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gradient-to-r from-fjc-yellow-50 to-fjc-blue-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Ingredient</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Unit</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Current Stock</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Min Stock</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="ingredientsTableBody" class="bg-white divide-y divide-gray-200">
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                            <span class="text-4xl mb-2 block">🥘</span>
+                            <p class="text-lg">Loading ingredients...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div id="mobileView" class="md:hidden divide-y divide-gray-200">
+            <div class="px-6 py-12 text-center text-gray-500">
+                <span class="text-4xl mb-2 block">🥘</span>
+                <p class="text-lg">Loading ingredients...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl"><span class="material-icons">check_circle</span></span>
+                <div>
+                    <p class="font-semibold text-green-900">Available</p>
+                    <p class="text-sm text-green-700">Ingredient is in stock and can be used</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl"><span class="material-icons">close</span></span>
+                <div>
+                    <p class="font-semibold text-red-900">Unavailable</p>
+                    <p class="text-sm text-red-700">Products using this will be disabled</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl"><span class="material-icons">warning</span></span>
+                <div>
+                    <p class="font-semibold text-yellow-900">Low Stock</p>
+                    <p class="text-sm text-yellow-700">Stock below minimum threshold</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load ingredients on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadIngredients();
+});
+
+// Store all ingredients for filtering
+let allIngredients = [];
+
+function filterIngredients() {
+    const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+
+    // Filter ingredients based on search query
+    const filteredIngredients = allIngredients.filter(ingredient => {
+        return ingredient.name.toLowerCase().includes(searchQuery) ||
+               ingredient.unit.toLowerCase().includes(searchQuery);
+    });
+
+    // Re-render with filtered results
+    renderIngredients(filteredIngredients);
+}
+
+function loadIngredients() {
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const desktopView = document.getElementById('desktopView');
+    const mobileView = document.getElementById('mobileView');
+    const ingredientsTableBody = document.getElementById('ingredientsTableBody');
+
+    loadingSpinner.classList.remove('hidden');
+
+    fetch('{% url "products:api_cashier_ingredients" %}')
+        .then(response => {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                allIngredients = data.ingredients;  // Store for filtering
+                renderIngredients(data.ingredients);
+            } else {
+                Toast.error('Failed to load ingredients');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading ingredients:', error);
+            Toast.error('Error loading ingredients');
+        })
+        .finally(() => {
+            loadingSpinner.classList.add('hidden');
+        });
+}
+
+function renderIngredients(ingredients) {
+    const desktopView = document.getElementById('desktopView');
+    const mobileView = document.getElementById('mobileView');
+    const ingredientsTableBody = document.getElementById('ingredientsTableBody');
+
+    if (ingredients.length === 0) {
+        ingredientsTableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                    <span class="text-4xl mb-2 block">🥘</span>
+                    <p class="text-lg">No ingredients found</p>
+                </td>
+            </tr>
+        `;
+        mobileView.innerHTML = `
+            <div class="px-6 py-12 text-center text-gray-500">
+                <span class="text-4xl mb-2 block">🥘</span>
+                <p class="text-lg">No ingredients found</p>
+            </div>
+        `;
+        desktopView.classList.add('hidden');
+        return;
+    }
+
+    // Render desktop table
+    let tableHTML = '';
+    ingredients.forEach(ingredient => {
+        const statusBadge = ingredient.is_available
+            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><span class="material-icons">check_circle</span> Available</span>'
+            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><span class="material-icons">close</span> Unavailable</span>';
+
+        const lowStockBadge = ingredient.is_low_stock
+            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 ml-2"><span class="material-icons">warning</span> Low</span>'
+            : '';
+
+        const stockClass = ingredient.current_stock <= ingredient.min_stock ? 'text-red-600 font-semibold' : 'text-gray-900';
+
+        tableHTML += `
+            <tr class="hover:bg-gray-50 transition">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    ${ingredient.name}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${ingredient.unit}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm ${stockClass}">
+                    ${ingredient.current_stock.toFixed(2)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${ingredient.min_stock.toFixed(2)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center gap-1">
+                        ${statusBadge}
+                        ${lowStockBadge}
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right">
+                    <button onclick="toggleAvailability(${ingredient.id}, '${ingredient.name}')"
+                            class="px-4 py-2 rounded-lg font-medium transition ${ingredient.is_available ? 'bg-red-100 hover:bg-red-200 text-red-700' : 'bg-green-100 hover:bg-green-200 text-green-700'}">
+                        ${ingredient.is_available ? 'Mark Unavailable' : 'Mark Available'}
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    ingredientsTableBody.innerHTML = tableHTML;
+    desktopView.classList.remove('hidden');
+
+    // Render mobile view
+    let mobileHTML = '';
+    ingredients.forEach(ingredient => {
+        const statusBadge = ingredient.is_available
+            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><span class="material-icons">check_circle</span> Available</span>'
+            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><span class="material-icons">close</span> Unavailable</span>';
+
+        const lowStockBadge = ingredient.is_low_stock
+            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 ml-2"><span class="material-icons">warning</span> Low</span>'
+            : '';
+
+        const stockClass = ingredient.current_stock <= ingredient.min_stock ? 'text-red-600 font-semibold' : 'text-gray-900';
+
+        mobileHTML += `
+            <div class="p-4 hover:bg-gray-50 transition">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <p class="font-semibold text-gray-900">${ingredient.name}</p>
+                        <p class="text-sm text-gray-500">${ingredient.unit}</p>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        ${statusBadge}
+                        ${lowStockBadge}
+                    </div>
+                </div>
+
+                <div class="space-y-2 mb-4">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Current Stock:</span>
+                        <span class="${stockClass}">${ingredient.current_stock.toFixed(2)}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Min Stock:</span>
+                        <span class="text-gray-900">${ingredient.min_stock.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <button onclick="toggleAvailability(${ingredient.id}, '${ingredient.name}')"
+                        class="w-full px-4 py-2 rounded-lg font-medium transition ${ingredient.is_available ? 'bg-red-100 hover:bg-red-200 text-red-700' : 'bg-green-100 hover:bg-green-200 text-green-700'}">
+                    ${ingredient.is_available ? 'Mark Unavailable' : 'Mark Available'}
+                </button>
+            </div>
+        `;
+    });
+
+    mobileView.innerHTML = mobileHTML;
+}
+
+function toggleAvailability(ingredientId, ingredientName) {
+    const formData = new FormData();
+    formData.append('ingredient_id', ingredientId);
+
+    fetch('{% url "products:api_toggle_ingredient" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            Toast.success(data.message);
+            // Reload ingredients to reflect changes
+            loadIngredients();
+        } else {
+            Toast.error(data.error || 'Failed to toggle ingredient');
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling ingredient:', error);
+        Toast.error('Error updating ingredient availability');
+    });
+}
+</script>
+{% endblock %}

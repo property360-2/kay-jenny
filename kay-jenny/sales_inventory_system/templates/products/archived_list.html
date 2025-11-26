@@ -1,0 +1,410 @@
+{% extends 'base.html' %}
+
+{% block title %}Archived Products - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Archived Products</h1>
+            <p class="mt-1 text-sm text-gray-500">View and restore archived products</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'products:list' %}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-sm">
+                Back to Products
+            </a>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+        <form id="filters-form" method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- Search -->
+            <div class="md:col-span-2">
+                <label for="search-input" class="block text-sm font-medium text-gray-700 mb-2">Search Archived Products</label>
+                <input type="text" id="search-input" name="search" placeholder="Search by name, description, or category..." value="{{ search }}"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
+            </div>
+
+            <!-- Category -->
+            <div>
+                <label for="category-select" class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select id="category-select" name="category"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 bg-white">
+                    <option value="">All categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-end gap-2">
+                <button type="submit" class="w-full px-4 py-2 text-sm bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium">
+                    Apply
+                </button>
+                <button id="clear-filters-btn" type="button" class="w-full px-4 py-2 text-sm text-fjc-blue-600 hover:text-fjc-blue-700 font-medium border border-fjc-blue-300 rounded-lg hover:bg-fjc-blue-50 {% if not search and not selected_category %}hidden{% endif %}">
+                    Clear
+                </button>
+            </div>
+        </form>
+
+        <!-- Results Info -->
+        <div class="mt-4">
+            <p class="text-sm text-gray-600">
+                Showing <span id="results-count" class="font-semibold">{{ total_count }}</span> archived product{{ total_count|pluralize }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="archived-empty" class="bg-white rounded-lg shadow-md border border-gray-200 p-12 text-center {% if products %}hidden{% endif %}">
+        <div class="text-6xl mb-4">[ ]</div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">No Archived Products</h3>
+        <p class="text-gray-600 mb-6">You don't have any archived products yet.</p>
+        <a href="{% url 'products:list' %}" class="inline-block px-6 py-2 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium">
+            View Active Products
+        </a>
+    </div>
+
+    <!-- Archived Products Table -->
+    <div id="archived-table" class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden {% if not products %}hidden{% endif %}">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Product</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Category</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Price</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Archived By</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Archived Date</th>
+                        <th class="px-6 py-3 text-center text-sm font-semibold text-gray-900">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="archived-products-body" class="divide-y divide-gray-200">
+                    {% for product in products %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                {% if product.image %}
+                                <div class="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                    <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                                </div>
+                                {% else %}
+                                <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-lg font-semibold text-gray-500">
+                                    {{ product.name|default:"P"|slice:":1"|upper }}
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <p class="font-medium text-gray-900">{{ product.name }}</p>
+                                    {% if product.description %}
+                                    <p class="text-sm text-gray-500">{{ product.description|truncatewords:5 }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-700">
+                            {{ product.category|default:"N/A" }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-700">
+                            PHP {{ product.price|floatformat:2 }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-700">
+                            {{ product.archive_info.archived_by }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-700">
+                            {% if product.archive_info.archived_at %}
+                                {{ product.archive_info.archived_at|date:"M d, Y H:i" }}
+                            {% else %}
+                                Unknown date
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex gap-2 justify-center">
+                                <button onclick="restoreProduct({{ product.id }}, '{{ product.name|escapejs }}')"
+                                        class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm transition">
+                                    Restore
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <nav id="archived-pagination" class="flex items-center justify-between {% if not page_obj.has_other_pages %}hidden{% endif %}">
+        <div class="flex-1 flex justify-between sm:hidden">
+            {% if page_obj.has_previous %}
+            <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                First
+            </a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Previous
+            </a>
+            {% endif %}
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Next
+            </a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Last
+            </a>
+            {% endif %}
+        </div>
+        <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm text-gray-700">
+                    Page <span class="font-semibold">{{ page_obj.number }}</span> of <span class="font-semibold">{{ page_obj.paginator.num_pages }}</span>
+                </p>
+            </div>
+            <div>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                    {% if page_obj.has_previous %}
+                    <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        First
+                    </a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}" class="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        Previous
+                    </a>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}" class="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        Next
+                    </a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        Last
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </nav>
+
+</div>
+
+<script>
+    const filtersForm = document.getElementById('filters-form');
+    const categorySelect = document.getElementById('category-select');
+    const clearBtn = document.getElementById('clear-filters-btn');
+    const searchInput = document.getElementById('search-input');
+    const tableContainer = document.getElementById('archived-table');
+    const tableBody = document.getElementById('archived-products-body');
+    const emptyState = document.getElementById('archived-empty');
+    const paginationContainer = document.getElementById('archived-pagination');
+    const resultsCount = document.getElementById('results-count');
+
+    function renderProducts(products) {
+        if (!products || products.length === 0) {
+            tableContainer.classList.add('hidden');
+            paginationContainer.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            tableBody.innerHTML = '';
+            return;
+        }
+
+        emptyState.classList.add('hidden');
+        tableContainer.classList.remove('hidden');
+
+        const rows = products.map((p) => {
+            const initial = (p.name || 'P').trim().charAt(0).toUpperCase() || 'P';
+            const price = typeof p.price === 'number' ? p.price.toFixed(2) : '0.00';
+            const archivedAt = p.archived_at || 'Unknown date';
+            const safeName = (p.name || '').replace(/'/g, "\\'");
+            const imageCell = p.image_url
+                ? `<div class="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        <img src="${p.image_url}" alt="${p.name}" class="w-full h-full object-cover">
+                   </div>`
+                : `<div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-lg font-semibold text-gray-500">
+                        ${initial}
+                   </div>`;
+
+            return `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            ${imageCell}
+                            <div>
+                                <p class="font-medium text-gray-900">${p.name || 'Unnamed product'}</p>
+                                ${p.description ? `<p class="text-sm text-gray-500">${p.description}</p>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        ${p.category || 'N/A'}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        PHP ${price}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        ${p.archived_by || 'Unknown'}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        ${archivedAt}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex gap-2 justify-center">
+                            <button onclick="restoreProduct(${p.id}, '${safeName}')"
+                                    class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm transition">
+                                Restore
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        tableBody.innerHTML = rows;
+    }
+
+    function renderPagination(pagination) {
+        if (!paginationContainer) return;
+
+        if (!pagination || pagination.total_pages <= 1) {
+            paginationContainer.classList.add('hidden');
+            paginationContainer.innerHTML = '';
+            return;
+        }
+
+        paginationContainer.classList.remove('hidden');
+
+        const buildLink = (label, page, disabled) => `
+            <a href="#" data-page="${page}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${disabled ? 'opacity-50 pointer-events-none' : ''}">
+                ${label}
+            </a>
+        `;
+
+        const mobile = `
+            <div class="flex-1 flex justify-between sm:hidden">
+                ${buildLink('First', pagination.first_page, !pagination.has_previous)}
+                ${buildLink('Previous', pagination.previous_page_number || pagination.page, !pagination.has_previous)}
+                ${buildLink('Next', pagination.next_page_number || pagination.page, !pagination.has_next)}
+                ${buildLink('Last', pagination.last_page, !pagination.has_next)}
+            </div>
+        `;
+
+        const desktop = `
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Page <span class="font-semibold">${pagination.page}</span> of <span class="font-semibold">${pagination.total_pages}</span>
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                        ${buildLink('First', pagination.first_page, !pagination.has_previous)}
+                        ${buildLink('Previous', pagination.previous_page_number || pagination.page, !pagination.has_previous)}
+                        ${buildLink('Next', pagination.next_page_number || pagination.page, !pagination.has_next)}
+                        ${buildLink('Last', pagination.last_page, !pagination.has_next)}
+                    </nav>
+                </div>
+            </div>
+        `;
+
+        paginationContainer.innerHTML = mobile + desktop;
+    }
+
+    async function fetchArchives(page = 1) {
+        const params = new URLSearchParams();
+        params.set('page', page);
+
+        const searchVal = searchInput.value.trim();
+        const categoryVal = categorySelect.value;
+        if (searchVal) params.set('search', searchVal);
+        if (categoryVal) params.set('category', categoryVal);
+
+        tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-sm text-gray-600">Loading archives...</td></tr>';
+
+        try {
+            const response = await fetch(`?${params.toString()}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await response.json();
+
+            renderProducts(data.products);
+            renderPagination(data.pagination);
+
+            if (resultsCount && data.pagination) {
+                resultsCount.textContent = data.pagination.total_count;
+            }
+
+            if (clearBtn) {
+                if (searchVal || categoryVal) {
+                    clearBtn.classList.remove('hidden');
+                } else {
+                    clearBtn.classList.add('hidden');
+                }
+            }
+        } catch (err) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-sm text-red-600">Error loading archives.</td></tr>';
+        }
+    }
+
+    let searchDebounceTimeout = null;
+
+    // Submit filters on category change for quick filtering (without page reload)
+    if (categorySelect) {
+        categorySelect.addEventListener('change', () => fetchArchives(1));
+    }
+
+    // Submit filters via form (Enter key)
+    if (filtersForm) {
+        filtersForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            fetchArchives(1);
+        });
+    }
+
+    // Live search (debounced) + Enter submit without reload
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                fetchArchives(1);
+                return;
+            }
+            clearTimeout(searchDebounceTimeout);
+            searchDebounceTimeout = setTimeout(() => fetchArchives(1), 400);
+        });
+    }
+
+    // Clear filters
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            if (searchInput) searchInput.value = '';
+            if (categorySelect) categorySelect.value = '';
+            clearBtn.classList.add('hidden');
+            fetchArchives(1);
+        });
+    }
+
+    // Handle pagination clicks without reload
+    if (paginationContainer) {
+        paginationContainer.addEventListener('click', function(e) {
+            const link = e.target.closest('a[data-page]');
+            if (!link) return;
+            e.preventDefault();
+            const page = parseInt(link.dataset.page, 10) || 1;
+            fetchArchives(page);
+        });
+    }
+
+    // Restore product
+    function restoreProduct(productId, productName) {
+        Confirm.show({
+            title: 'Restore Product',
+            message: `Restore "${productName}" to active products?`,
+            confirmText: 'Restore',
+            cancelText: 'Cancel',
+            type: 'success',
+            onConfirm: () => {
+                Loading.show();
+                window.location.href = `/products/${productId}/unarchive/`;
+            }
+        });
+    }
+</script>
+{% endblock %}

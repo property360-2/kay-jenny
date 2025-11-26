@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py check:*)",
+      "Bash(python test_ingredient_system.py:*)",
+      "Bash(git commit:*)",
+      "Bash(python manage.py:*)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(find:*)",
+      "Bash(python:*)",
+      "Bash(git rm:*)",
+      "Bash(cat:*)",
+      "Bash(netstat:*)",
+      "Bash(nul)",
+      "Bash({} ;)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

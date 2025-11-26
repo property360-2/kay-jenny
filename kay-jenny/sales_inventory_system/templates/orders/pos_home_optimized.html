@@ -1,0 +1,1085 @@
+﻿Ã¯Â»Â¿{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cafe Cantina - POS System</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'fjc-yellow': {
+                            50: '#f7f5ef',
+                            100: '#ede8d8',
+                            200: '#d7d6cd',
+                            300: '#c8bfa9',
+                            400: '#b39d7f',
+                            500: '#5F5835',
+                            600: '#514a2d',
+                            700: '#433d26',
+                            800: '#362f1e',
+                            900: '#2a2517',
+                        },
+                        'fjc-blue': {
+                            50: '#f3f0ea',
+                            100: '#e7dfd3',
+                            200: '#d6cbb4',
+                            300: '#c2b390',
+                            400: '#a28c67',
+                            500: '#6B5F48',
+                            600: '#3F3522',
+                            700: '#382D17',
+                            800: '#2b2112',
+                            900: '#20170c',
+                        },
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Loading overlay */
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+        #loading-overlay.active {
+            display: flex;
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            min-width: 300px;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+            font-weight: 600;
+        }
+        .toast.success { background: #10b981; color: #fff; }
+        .toast.error { background: #ef4444; color: #fff; }
+        .toast.warning { background: #f59e0b; color: #fff; }
+        .toast.info { background: #3b82f6; color: #fff; }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        /* Floating cart button */
+        .floating-cart {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 999;
+        }
+
+        .floating-cart-btn {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #382D17 0%, #6B5F48 100%);
+            border: 2px solid #3F3522;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 2rem;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .floating-cart-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 14px 32px rgba(56, 45, 23, 0.25);
+        }
+
+        .floating-cart-btn:active {
+            transform: scale(0.95);
+        }
+
+        .cart-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ef4444;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .cart-badge.hidden {
+            display: none;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            animation: fadeInOverlay 0.3s ease-out;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            align-items: flex-end;
+        }
+
+        @keyframes fadeInOverlay {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+            animation: slideUpModal 0.3s ease-out;
+        }
+
+        @keyframes slideUpModal {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .modal-overlay.active {
+                align-items: center;
+                justify-content: center;
+            }
+
+            .modal-content {
+                width: 90%;
+                max-width: 600px;
+                border-radius: 16px;
+            }
+        }
+
+        /* Modal items list */
+        .modal-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.2s;
+        }
+
+        .modal-item:hover {
+            background-color: #f9fafb;
+        }
+
+        .modal-item-image {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .modal-item-details {
+            flex: 1;
+        }
+
+        .modal-item-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .quantity-control {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 0.25rem;
+        }
+
+        .quantity-control button {
+            width: 28px;
+            height: 28px;
+            border: 2px solid #3F3522;
+            background: transparent;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .quantity-control button:hover {
+            background-color: #f3f4f6;
+        }
+
+        .quantity-control input {
+            width: 40px;
+            border: 2px solid #3F3522;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .btn-delete {
+            background: #ef4444;
+            color: #fff;
+            border: 2px solid #3F3522;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn-delete:hover {
+            background-color: #dc2626;
+        }
+
+        /* Scrollbar styling */
+        .modal-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .modal-content::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .modal-content::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .modal-content::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-50">
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="bg-white rounded-lg p-8 text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-fjc-blue-500 mx-auto"></div>
+            <p class="mt-4 text-gray-700 font-semibold">Processing...</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-fjc-blue-700 to-fjc-blue-500 text-white sticky top-0 z-50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <div class="flex items-center mb-2">
+                        <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                            <span class="text-fjc-blue-600 font-bold text-2xl">FJC</span>
+                        </div>
+                        <div class="ml-3">
+                            <h1 class="text-3xl font-bold">POS System</h1>
+                            <p class="text-sm opacity-90">Staff Order Management</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-center">
+                    <a href="{% url 'orders:list' %}" class="bg-white text-fjc-blue-700 px-6 py-2 rounded-lg hover:bg-fjc-yellow-50 font-semibold transition flex items-center gap-2 border border-fjc-blue-200"><span class="material-icons text-sm">arrow_back</span><span>Back to Orders</span></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Main Product Area -->
+            <div class="lg:col-span-3">
+                <!-- Products by Category -->
+                {% regroup products by category as product_categories %}
+
+                {% if products %}
+                    <!-- Category Filter Buttons -->
+                    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-4 mb-8 sticky top-24 z-40">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-3">Filter by Category:</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" onclick="filterCategory('all')"
+                                    class="category-btn active px-4 py-2 rounded-lg font-medium transition bg-fjc-blue-600 text-white"
+                                    data-category="all">
+                                ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ All Products
+                            </button>
+                            {% for category in product_categories %}
+                            <button type="button" onclick="filterCategory('{{ category.grouper|slugify }}')"
+                                    class="category-btn px-4 py-2 rounded-lg font-medium transition bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                    data-category="{{ category.grouper|slugify }}">
+                                {% if category.grouper == 'Pizza' %}ÃƒÂ°Ã…Â¸Ã‚ï¿½Ã¢â‚¬Â¢{% elif category.grouper == 'Sides' %}ÃƒÂ°Ã…Â¸Ã‚ï¿½Ã…Â¸{% elif category.grouper == 'Drinks' %}ÃƒÂ°Ã…Â¸Ã‚Â¥Ã‚Â¤{% elif category.grouper == 'Desserts' %}ÃƒÂ°Ã…Â¸Ã‚ï¿½Ã‚Â°{% else %}ÃƒÂ°Ã…Â¸Ã‚ï¿½Ã‚Â½ÃƒÂ¯Ã‚Â¸Ã‚ï¿½{% endif %}
+                                {{ category.grouper|default:"Other" }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {% for category in product_categories %}
+                    <div class="category-section mb-10" data-category="{{ category.grouper|slugify }}" id="category-{{ category.grouper|slugify }}">
+                        <div class="flex items-center mb-6">
+                            <h2 class="text-3xl font-bold text-gray-900">
+                                {% if category.grouper == 'Pizza' %}ÃƒÂ°Ã…Â¸Ã‚ï¿½Ã¢â‚¬Â¢{% elif category.grouper == 'Sides' %}ÃƒÂ°Ã…Â¸Ã‚ï¿½Ã…Â¸{% elif category.grouper == 'Drinks' %}ÃƒÂ°Ã…Â¸Ã‚Â¥Ã‚Â¤{% elif category.grouper == 'Desserts' %}ÃƒÂ°Ã…Â¸Ã‚ï¿½Ã‚Â°{% else %}ÃƒÂ°Ã…Â¸Ã‚ï¿½Ã‚Â½ÃƒÂ¯Ã‚Â¸Ã‚ï¿½{% endif %}
+                                {{ category.grouper|default:"Other Items" }}
+                            </h2>
+                            <div class="ml-auto">
+                                <span class="text-gray-500 text-sm">{{ category.list|length }} item{{ category.list|length|pluralize }}</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {% for product in category.list %}
+                            <div class="bg-white rounded-lg shadow-md border {% if product.is_available_for_order %}border-gray-200 hover:shadow-xl{% else %}border-red-300 bg-red-50{% endif %} overflow-hidden transition-shadow {% if not product.is_available_for_order %}opacity-60{% endif %}" x-data="{ quantity: 1 }">
+                                <!-- Product Image with Lazy Loading -->
+                                {% if product.image %}
+                                <div class="h-48 overflow-hidden bg-gray-100 {% if not product.is_available_for_order %}grayscale{% endif %}">
+                                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200'%3E%3Crect fill='%23f3f4f6' width='300' height='200'/%3E%3C/svg%3E" data-src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover" loading="lazy">
+                                </div>
+                                {% else %}
+                                <div class="h-48 bg-gradient-to-br {% if product.is_available_for_order %}from-fjc-yellow-100 to-fjc-blue-100{% else %}from-red-100 to-red-200{% endif %} flex items-center justify-center">
+                                    <span class="text-6xl {% if not product.is_available_for_order %}grayscale{% endif %}">ÃƒÂ°Ã…Â¸Ã‚ï¿½Ã¢â‚¬Â¢</span>
+                                </div>
+                                {% endif %}
+
+                                <!-- Product Details -->
+                                <div class="p-4">
+                                    <h3 class="text-lg font-bold {% if product.is_available_for_order %}text-gray-900{% else %}text-red-700{% endif %} mb-2">{{ product.name }}</h3>
+                                    {% if product.description %}
+                                    <p class="text-sm {% if product.is_available_for_order %}text-gray-600{% else %}text-red-600{% endif %} mb-3 line-clamp-2">{{ product.description }}</p>
+                                    {% endif %}
+
+                                    <div class="flex justify-between items-center mb-4">
+                                        <span class="text-2xl font-bold {% if product.is_available_for_order %}text-fjc-blue-600{% else %}text-red-600{% endif %}">₱{{ product.price }}</span>
+                                        <span class="text-sm {% if product.is_available_for_order %}text-gray-500{% else %}text-red-600 font-semibold{% endif %}">
+                                            {% if product.is_available_for_order %}
+                                            Stock: {{ product.stock }}
+                                            {% else %}
+                                            <span class="material-icons">close</span> Out of Stock
+                                            {% endif %}
+                                        </span>
+                                    </div>
+
+                                    <!-- Quantity Selector -->
+                                    <div class="flex items-center space-x-2 mb-3">
+                                        <button @click="if(quantity > 1) quantity--" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-3 rounded {% if not product.is_available_for_order %}opacity-50 cursor-not-allowed{% endif %}" {% if not product.is_available_for_order %}disabled{% endif %}>
+                                            -
+                                        </button>
+                                        <input type="number" x-model="quantity" min="1" :max="{{ product.stock }}" class="w-16 text-center border border-gray-300 rounded py-1 {% if not product.is_available_for_order %}opacity-50 cursor-not-allowed{% endif %}" {% if not product.is_available_for_order %}disabled{% endif %}>
+                                        <button @click="if(quantity < {{ product.stock }}) quantity++" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-3 rounded {% if not product.is_available_for_order %}opacity-50 cursor-not-allowed{% endif %}" {% if not product.is_available_for_order %}disabled{% endif %}>
+                                            +
+                                        </button>
+                                    </div>
+
+                                    <!-- Add to Cart Button -->
+                                    <button
+                                        @click="addToCart({{ product.id }}, quantity)"
+                                        class="w-full {% if product.is_available_for_order %}bg-fjc-yellow-500 hover:bg-fjc-yellow-600 text-white{% else %}bg-gray-300 text-gray-500 cursor-not-allowed{% endif %} font-bold py-3 px-4 rounded-lg transition"
+                                        {% if not product.is_available_for_order %}disabled{% endif %}>
+                                        {% if product.is_available_for_order %}
+                                        Add to Cart
+                                        {% else %}
+                                        Unavailable
+                                        {% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <!-- Empty State -->
+                    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-12 text-center">
+                        <span class="material-icons text-6xl mb-4 text-fjc-blue-700">inventory_2</span>
+                        <h3 class="text-2xl font-bold text-fjc-blue-800 mb-2">No products available</h3>
+                        <p class="text-gray-600">Please check back later</p>
+                    </div>
+                {% endif %}
+            </div>
+            <!-- End Main Product Area -->
+
+            <!-- Cart Summary Sidebar (Desktop Only) -->
+            <div class="hidden lg:block lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6 sticky top-24 space-y-4">
+                    <h3 class="text-lg font-bold text-fjc-blue-800 flex items-center gap-2">
+                        <span class="material-icons text-fjc-blue-700">assignment</span> Order Summary
+                    </h3>
+
+                    <div id="sidebar-cart-items" class="space-y-3 max-h-96 overflow-y-auto">
+                        <div class="text-center text-gray-500 py-4">
+                            <p>Your cart is empty</p>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-200 pt-4 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium text-gray-700">Subtotal:</span>
+                            <span id="sidebar-subtotal" class="text-sm font-semibold text-gray-900">₱0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium text-gray-700">Total Items:</span>
+                            <span id="sidebar-item-count" class="text-sm font-semibold text-gray-900">0</span>
+                        </div>
+                        <div class="bg-gradient-to-r from-fjc-yellow-50 to-fjc-blue-50 p-3 rounded-lg">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-gray-900">Total:</span>
+                                <span id="sidebar-total" class="text-xl font-bold text-fjc-blue-600">₱0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="sidebar-checkout-btn" class="w-full bg-fjc-yellow-500 hover:bg-fjc-yellow-600 text-white font-bold py-3 px-4 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Proceed to Checkout
+                    </button>
+                </div>
+            </div>
+            <!-- End Cart Summary Sidebar -->
+        </div>
+    </div>
+
+    <!-- Floating Cart Button -->
+        <div class="floating-cart">
+        <button id="floating-cart-btn" class="floating-cart-btn" title="Open cart">
+            <span class="material-icons">shopping_cart</span>
+            <span id="floating-cart-badge" class="cart-badge {% if cart_count == 0 %}hidden{% endif %}">
+                {{ cart_count }}
+            </span>
+        </button>
+    </div>
+
+    <!-- Cart Modal -->
+    <div id="cart-modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="sticky top-0 bg-white border-b border-gray-200 p-4 rounded-t-3xl md:rounded-t-2xl">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-fjc-blue-800">ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ¢â‚¬â„¢ Your Cart</h2>
+                    <button id="close-cart-modal" class="text-gray-500 hover:text-gray-700 text-2xl"><span class="material-icons">cancel</span></button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div id="cart-modal-items" class="space-y-0">
+                <!-- Cart items will be inserted here dynamically -->
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="sticky bottom-0 bg-white border-t border-gray-200 p-4">
+                <div class="space-y-3">
+                    <div class="bg-gradient-to-r from-fjc-yellow-50 to-fjc-blue-50 p-4 rounded-lg">
+                        <div class="flex justify-between items-center">
+                            <span class="text-lg font-bold text-gray-900">Total:</span>
+                            <span id="modal-total" class="text-2xl font-bold text-fjc-blue-600">₱0.00</span>
+                        </div>
+                    </div>
+                    <button id="confirm-order-btn" class="w-full bg-fjc-yellow-500 hover:bg-fjc-yellow-600 text-white font-bold py-3 px-4 rounded-lg transition">
+                        Proceed to Checkout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification System & Add to Cart Script -->
+    <script>
+        // Toast Notification Helper
+        const Toast = {
+            show(message, type = 'info', duration = 4000) {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease-out';
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+
+                return toast;
+            },
+            success(message, duration) { return this.show(message, 'success', duration); },
+            error(message, duration) { return this.show(message, 'error', duration); },
+            warning(message, duration) { return this.show(message, 'warning', duration); },
+            info(message, duration) { return this.show(message, 'info', duration); }
+        };
+
+        // Loading Overlay Helper
+        const Loading = {
+            show() {
+                document.getElementById('loading-overlay').classList.add('active');
+            },
+            hide() {
+                document.getElementById('loading-overlay').classList.remove('active');
+            }
+        };
+
+        // Get CSRF token from cookies
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // ===== PERFORMANCE OPTIMIZATIONS =====
+        // Cart state management with caching
+        let cartData = {};
+        let productCache = {};
+        let modalVisible = false;
+        let cartDirty = false;
+
+        // Optimized: Combine get-cart and get-cart-details into single API call
+        async function loadCartDataOptimized() {
+            try {
+                const response = await fetch('/orders/pos/get-cart/', {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                if (response.ok) {
+                    const newCartData = await response.json();
+
+                    if (JSON.stringify(newCartData) !== JSON.stringify(cartData)) {
+                        cartData = newCartData;
+                        updateCartBadges();
+                        cartDirty = true;
+                    }
+                }
+            } catch (error) {
+                console.log('Using cached cart data');
+            }
+        }
+
+        // Optimized: Fast badge update (no modal rendering yet)
+        function updateCartBadges() {
+            const totalItems = Object.values(cartData).reduce((sum, qty) => sum + parseInt(qty), 0);
+            const floatingBadge = document.getElementById('floating-cart-badge');
+
+            if (totalItems > 0) {
+                floatingBadge.textContent = totalItems;
+                floatingBadge.classList.remove('hidden');
+            } else {
+                floatingBadge.classList.add('hidden');
+            }
+
+            updateSidebarCart();
+        }
+
+        // Update sidebar cart summary (desktop only)
+        function updateSidebarCart() {
+            const sidebarItems = document.getElementById('sidebar-cart-items');
+            const sidebarTotal = document.getElementById('sidebar-total');
+            const sidebarSubtotal = document.getElementById('sidebar-subtotal');
+            const sidebarItemCount = document.getElementById('sidebar-item-count');
+            const checkoutBtn = document.getElementById('sidebar-checkout-btn');
+
+            let total = 0;
+            let itemCount = 0;
+            let itemsHTML = '';
+
+            if (Object.keys(cartData).length === 0) {
+                sidebarItems.innerHTML = '<div class="text-center text-gray-500 py-4"><p>Your cart is empty</p></div>';
+                sidebarTotal.textContent = '₱0.00';
+                sidebarSubtotal.textContent = '₱0.00';
+                sidebarItemCount.textContent = '0';
+                checkoutBtn.disabled = true;
+            } else {
+                for (const productId in cartData) {
+                    const product = productCache[productId];
+                    if (product) {
+                        const quantity = parseInt(cartData[productId]);
+                        const subtotal = product.price * quantity;
+                        total += subtotal;
+                        itemCount += quantity;
+
+                        itemsHTML += `
+                            <div class="border border-gray-200 rounded p-2 text-sm">
+                                <div class="font-medium text-gray-900">${product.name}</div>
+                                <div class="flex justify-between items-center mt-1">
+                                    <span class="text-gray-600">${quantity}x ₱${product.price}</span>
+                                    <span class="font-semibold text-fjc-blue-600">₱${subtotal.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                sidebarItems.innerHTML = itemsHTML;
+                sidebarTotal.textContent = `₱${total.toFixed(2)}`;
+                sidebarSubtotal.textContent = `₱${total.toFixed(2)}`;
+                sidebarItemCount.textContent = itemCount;
+                checkoutBtn.disabled = false;
+            }
+        }
+
+        // Optimized: Lazy load modal only when needed
+        async function updateCartModalOptimized() {
+            const container = document.getElementById('cart-modal-items');
+            const totalSpan = document.getElementById('modal-total');
+
+            if (Object.keys(cartData).length === 0) {
+                container.innerHTML = '<div class="p-6 text-center text-gray-500"><p>Your cart is empty</p></div>';
+                totalSpan.textContent = '₱0.00';
+                return;
+            }
+
+            const productIds = Object.keys(cartData);
+            const missingIds = productIds.filter(id => !productCache[id]);
+
+            if (missingIds.length > 0) {
+                try {
+                    const response = await fetch('/orders/pos/get-cart-details/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ product_ids: missingIds })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        Object.assign(productCache, data.products);
+                    }
+                } catch (error) {
+                    console.error('Error loading product details:', error);
+                }
+            }
+
+            let total = 0;
+            let itemsHTML = '';
+
+            for (const productId in cartData) {
+                const product = productCache[productId];
+                if (product) {
+                    const quantity = parseInt(cartData[productId]);
+                    const subtotal = product.price * quantity;
+                    total += subtotal;
+
+                    itemsHTML += `
+                        <div class="modal-item" id="modal-item-${productId}">
+                            ${product.image ? `<img src="${product.image}" alt="${product.name}" class="modal-item-image" loading="lazy">` : `<div class="modal-item-image bg-gradient-to-br from-fjc-yellow-100 to-fjc-blue-100 flex items-center justify-center text-4xl">ÃƒÂ°Ã…Â¸Ã‚ï¿½Ã¢â‚¬Â¢</div>`}
+                            <div class="modal-item-details">
+                                <h4 class="font-bold text-gray-900">${product.name}</h4>
+                                <p class="text-sm text-gray-600">₱${product.price} each</p>
+                                <p class="text-sm font-semibold text-fjc-blue-600">₱${subtotal.toFixed(2)}</p>
+                            </div>
+                            <div class="modal-item-actions">
+                                <div class="quantity-control">
+                                    <button onclick="updateItemQuantity(${productId}, ${quantity - 1})" ${quantity <= 1 ? 'disabled style="opacity:0.5"' : ''}>ÃƒÂ¢Ã‹â€ Ã¢â‚¬â„¢</button>
+                                    <input type="text" value="${quantity}" readonly>
+                                    <button onclick="updateItemQuantity(${productId}, ${quantity + 1})">+</button>
+                                </div>
+                                <button class="btn-delete" onclick="removeItemFromCart(${productId})">Delete</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            container.innerHTML = itemsHTML;
+            totalSpan.textContent = `₱${total.toFixed(2)}`;
+            cartDirty = false;
+        }
+
+        // Optimized: Add to cart with faster feedback
+        async function addToCart(productId, quantity) {
+            const productCard = event.target.closest('[x-data]');
+            if (productCard && productCard.classList.contains('opacity-60')) {
+                Toast.error('This product is currently unavailable - missing ingredients');
+                return;
+            }
+
+            Toast.info('Adding to cart...');
+
+            try {
+                const response = await fetch(`/orders/pos/add-to-cart/${productId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: `quantity=${quantity}`,
+                    signal: AbortSignal.timeout(5000)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    cartData[productId] = (cartData[productId] || 0) + quantity;
+                    updateCartBadges();
+                    cartDirty = true;
+
+                    Toast.success(data.message);
+                } else {
+                    Toast.error(data.message);
+                }
+            } catch (error) {
+                Toast.error('Network error. Please try again.');
+            }
+        }
+
+        // Optimized: Update item quantity with instant UI feedback
+        async function updateItemQuantity(productId, newQuantity) {
+            if (newQuantity < 1) {
+                removeItemFromCart(productId);
+                return;
+            }
+
+            const itemElement = document.getElementById(`modal-item-${productId}`);
+            if (itemElement) {
+                itemElement.style.opacity = '0.7';
+            }
+
+            try {
+                const response = await fetch(`/orders/pos/update-cart/${productId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: `quantity=${newQuantity}`,
+                    signal: AbortSignal.timeout(5000)
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    cartData[productId] = newQuantity;
+                    updateItemDisplay(productId);
+                    updateCartBadges();
+                    if (itemElement) itemElement.style.opacity = '1';
+                } else {
+                    Toast.error(data.message);
+                    if (itemElement) itemElement.style.opacity = '1';
+                }
+            } catch (error) {
+                Toast.error('Error updating quantity');
+                if (itemElement) itemElement.style.opacity = '1';
+            }
+        }
+
+        // Helper: Update only specific item display
+        function updateItemDisplay(productId) {
+            const product = productCache[productId];
+            const quantity = parseInt(cartData[productId]);
+            if (!product || !quantity) return;
+
+            const subtotal = product.price * quantity;
+            const itemElement = document.getElementById(`modal-item-${productId}`);
+
+            if (itemElement) {
+                const subtotalElement = itemElement.querySelector('.modal-item-details p:last-child');
+                if (subtotalElement) {
+                    subtotalElement.textContent = `₱${subtotal.toFixed(2)}`;
+                }
+
+                const qtyInput = itemElement.querySelector('.quantity-control input');
+                if (qtyInput) {
+                    qtyInput.value = quantity;
+                }
+
+                const minusBtn = itemElement.querySelector('.quantity-control button:first-child');
+                if (minusBtn) {
+                    if (quantity <= 1) {
+                        minusBtn.disabled = true;
+                        minusBtn.style.opacity = '0.5';
+                    } else {
+                        minusBtn.disabled = false;
+                        minusBtn.style.opacity = '1';
+                    }
+                }
+            }
+
+            updateModalTotal();
+        }
+
+        // Helper: Recalculate and update total price
+        function updateModalTotal() {
+            let total = 0;
+            for (const productId in cartData) {
+                const product = productCache[productId];
+                if (product) {
+                    total += product.price * parseInt(cartData[productId]);
+                }
+            }
+            const totalSpan = document.getElementById('modal-total');
+            if (totalSpan) {
+                totalSpan.textContent = `₱${total.toFixed(2)}`;
+            }
+        }
+
+        // Optimized: Remove item from cart with instant visual feedback
+        async function removeItemFromCart(productId) {
+            if (!confirm('Remove this item from cart?')) return;
+
+            const itemElement = document.getElementById(`modal-item-${productId}`);
+            if (itemElement) {
+                itemElement.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => itemElement.remove(), 300);
+            }
+
+            try {
+                const response = await fetch(`/orders/pos/remove-from-cart/${productId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    signal: AbortSignal.timeout(5000)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    Toast.success(data.message);
+                    delete cartData[productId];
+                    updateCartBadges();
+                    updateModalTotal();
+
+                    if (Object.keys(cartData).length === 0) {
+                        const container = document.getElementById('cart-modal-items');
+                        container.innerHTML = '<div class="p-6 text-center text-gray-500"><p>Your cart is empty</p></div>';
+                    }
+                } else {
+                    Toast.error(data.message);
+                    if (itemElement && itemElement.parentElement) {
+                        itemElement.style.animation = '';
+                    }
+                }
+            } catch (error) {
+                Toast.error('Error removing item');
+                if (itemElement && itemElement.parentElement) {
+                    itemElement.style.animation = '';
+                }
+            }
+        }
+
+        // Category Filtering
+        function filterCategory(category) {
+            const sections = document.querySelectorAll('.category-section');
+            const buttons = document.querySelectorAll('.category-btn');
+
+            buttons.forEach(btn => {
+                if (btn.dataset.category === category) {
+                    btn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+                    btn.classList.add('bg-fjc-blue-600', 'text-white');
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('bg-fjc-blue-600', 'text-white', 'active');
+                    btn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+                }
+            });
+
+            if (category === 'all') {
+                sections.forEach(section => {
+                    section.style.display = 'block';
+                    section.classList.add('fade-in');
+                });
+            } else {
+                sections.forEach(section => {
+                    if (section.dataset.category === category) {
+                        section.style.display = 'block';
+                        section.classList.add('fade-in');
+                    } else {
+                        section.style.display = 'none';
+                        section.classList.remove('fade-in');
+                    }
+                });
+            }
+
+            const productsSection = document.querySelector('.category-section');
+            if (productsSection) {
+                productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // Modal Management
+        const cartModalOverlay = document.getElementById('cart-modal-overlay');
+        const floatingCartBtn = document.getElementById('floating-cart-btn');
+        const closCartModalBtn = document.getElementById('close-cart-modal');
+        const confirmOrderBtn = document.getElementById('confirm-order-btn');
+
+        floatingCartBtn.addEventListener('click', () => {
+            cartModalOverlay.classList.add('active');
+            modalVisible = true;
+
+            if (cartDirty || Object.keys(cartData).length === 0) {
+                updateCartModalOptimized();
+            }
+
+            loadCartDataOptimized();
+        });
+
+        closCartModalBtn.addEventListener('click', () => {
+            cartModalOverlay.classList.remove('active');
+        });
+
+        cartModalOverlay.addEventListener('click', (e) => {
+            if (e.target === cartModalOverlay) {
+                cartModalOverlay.classList.remove('active');
+            }
+        });
+
+        confirmOrderBtn.addEventListener('click', () => {
+            window.location.href = '{% url "orders:pos_checkout" %}';
+        });
+
+        const sidebarCheckoutBtn = document.getElementById('sidebar-checkout-btn');
+        if (sidebarCheckoutBtn) {
+            sidebarCheckoutBtn.addEventListener('click', () => {
+                window.location.href = '{% url "orders:pos_checkout" %}';
+            });
+        }
+
+        // Add lazy loading to all product images
+        function addLazyLoadingToProducts() {
+            const productImages = document.querySelectorAll('.h-48 img');
+            if ('IntersectionObserver' in window) {
+                const imageObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            img.src = img.dataset.src || img.src;
+                            img.classList.add('loaded');
+                            observer.unobserve(img);
+                        }
+                    });
+                });
+
+                productImages.forEach(img => imageObserver.observe(img));
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadCartDataOptimized();
+            addLazyLoadingToProducts();
+            if (Object.keys(cartData).length > 0) {
+                await updateCartModalOptimized();
+            }
+            updateSidebarCart();
+        });
+
+        // Periodic background refresh
+        setInterval(() => {
+            if (modalVisible) {
+                loadCartDataOptimized();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

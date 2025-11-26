@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ report.ingredient }} Usage Details - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">{{ report.ingredient }} Usage Details</h1>
+            <p class="mt-1 text-sm text-gray-500">
+                Period: {{ report.period_start|date:"M d, Y" }} to {{ report.period_end|date:"M d, Y" }} ({{ report.period_days }} days)
+            </p>
+        </div>
+        <a href="{% url 'products:bom_usage_report' %}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-sm">
+            ← Back
+        </a>
+    </div>
+
+    <!-- Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-600 mb-2">Current Stock</p>
+            <p class="text-3xl font-bold text-gray-900">{{ report.current_stock|floatformat:2 }} {{ report.unit }}</p>
+            <p class="text-xs text-gray-600 mt-2">Cost per Unit: ₱{{ report.cost_per_unit|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-600 mb-2">Total Transactions</p>
+            <p class="text-3xl font-bold text-blue-600">{{ report.total_transactions }}</p>
+            <p class="text-xs text-gray-600 mt-2">Stock movements recorded</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-600 mb-2">Period</p>
+            <p class="text-xl font-bold text-gray-900">{{ report.period_days }} Days</p>
+            <p class="text-xs text-gray-600 mt-2">Analysis period</p>
+        </div>
+    </div>
+
+    <!-- Transactions by Type -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Transactions by Type</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Count</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Total Quantity</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Total Cost</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for trans_type, data in report.transactions_by_type.items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ trans_type }}</td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-700">{{ data.count }}</td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-900 font-semibold">{{ data.quantity|floatformat:2 }} {{ report.unit }}</td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-900 font-semibold">₱{{ data.cost|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-600">No transactions recorded for this period</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Waste by Type -->
+    {% if report.waste_by_type %}
+    <div class="bg-white rounded-lg shadow-md border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Waste by Type</h2>
+            <p class="text-sm text-gray-600 mt-1">Spoilage, waste, and freebie logs</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Count</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Total Quantity</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Total Cost</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for waste_type, data in report.waste_by_type.items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ waste_type }}</td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-700">{{ data.count }}</td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-900 font-semibold">{{ data.quantity|floatformat:2 }} {{ report.unit }}</td>
+                        <td class="px-6 py-4 text-sm text-right text-red-600 font-semibold">₱{{ data.cost|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-600">No waste recorded for this period</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

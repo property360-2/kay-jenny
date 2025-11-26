@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ user.username }} - Audit Trail - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header with Back Button -->
+    <div class="flex items-center gap-4">
+        <a href="{% url 'accounts:user_list' %}" class="inline-flex items-center gap-2 text-fjc-blue-600 hover:text-fjc-blue-900 font-semibold">
+            ← Back to Staff
+        </a>
+    </div>
+
+    <!-- User Info Card -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+        <div class="flex items-center gap-4">
+            <div class="flex-shrink-0 h-16 w-16 bg-fjc-blue-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                {{ user.username.0|upper }}
+            </div>
+            <div class="flex-1">
+                <h1 class="text-2xl font-bold text-gray-900">{{ user.username }}</h1>
+                <p class="text-gray-600">
+                    {% if user.first_name or user.last_name %}
+                        {{ user.first_name }} {{ user.last_name }}
+                    {% else %}
+                        No name set
+                    {% endif %}
+                </p>
+                <p class="text-sm text-gray-500 mt-2">{{ user.email|default:"-" }}</p>
+            </div>
+            <div class="text-right">
+                {% if user.role == 'ADMIN' %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 gap-1">
+                    <span class="material-icons text-sm">admin_panel_settings</span> Admin
+                </span>
+                {% else %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 gap-1">
+                    <span class="material-icons text-sm">account_circle</span> Cashier
+                </span>
+                {% endif %}
+                <p class="text-sm text-gray-500 mt-2">Total Actions: <span class="font-bold text-gray-900">{{ total_actions }}</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Logs -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+        <!-- Desktop Table View -->
+        <div class="hidden md:block overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gradient-to-r from-fjc-yellow-50 to-fjc-blue-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Timestamp</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Model</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Description</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">IP Address</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for log in audit_logs %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ log.created_at|date:"M d, Y H:i:s" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if log.action == 'CREATE' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 gap-1">
+                                <span class="material-icons text-sm">check_circle</span> Create
+                            </span>
+                            {% elif log.action == 'UPDATE' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1">
+                                <span class="material-icons text-sm">edit</span> Update
+                            </span>
+                            {% elif log.action == 'DELETE' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 gap-1">
+                                <span class="material-icons text-sm">delete</span> Delete
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 gap-1">
+                                <span class="material-icons text-sm">description</span> {{ log.action }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ log.model_name }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900">
+                            {{ log.description|default:"-" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ log.ip_address|default:"-" }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            <span class="material-icons text-4xl mb-2 block">assignment</span>
+                            <p class="text-lg">No audit logs found for this user</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="md:hidden divide-y divide-gray-200">
+            {% for log in audit_logs %}
+            <div class="p-4 hover:bg-gray-50 transition">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="text-sm font-medium text-gray-900">
+                        {{ log.model_name }}
+                    </div>
+                    {% if log.action == 'CREATE' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 gap-1">
+                        <span class="material-icons text-sm">check_circle</span> Create
+                    </span>
+                    {% elif log.action == 'UPDATE' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1">
+                        <span class="material-icons text-sm">edit</span> Update
+                    </span>
+                    {% elif log.action == 'DELETE' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 gap-1">
+                        <span class="material-icons text-sm">delete</span> Delete
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 gap-1">
+                        <span class="material-icons text-sm">description</span> {{ log.action }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Timestamp:</span>
+                        <span class="text-gray-900">{{ log.created_at|date:"M d, Y H:i:s" }}</span>
+                    </div>
+                    {% if log.description %}
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Description:</span>
+                        <span class="text-gray-900">{{ log.description }}</span>
+                    </div>
+                    {% endif %}
+                    {% if log.ip_address %}
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">IP Address:</span>
+                        <span class="text-gray-900">{{ log.ip_address }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="px-6 py-12 text-center text-gray-500">
+                <span class="material-icons text-5xl mb-2 block">assignment</span>
+                <p class="text-lg">No audit logs found for this user</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="flex justify-center items-center gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?page=1" class="px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition">First</a>
+        <a href="?page={{ page_obj.previous_page_number }}" class="px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition">← Previous</a>
+        {% endif %}
+
+        <span class="px-4 py-2 text-sm text-gray-600">
+            Page {{ page_obj.number }} of {{ paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition">Next →</a>
+        <a href="?page={{ paginator.num_pages }}" class="px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition">Last</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

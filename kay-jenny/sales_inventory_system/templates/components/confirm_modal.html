@@ -1,0 +1,187 @@
+<!-- Confirmation Modal Component -->
+<div id="confirm-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <!-- Background overlay -->
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" id="modal-backdrop"></div>
+
+    <!-- Modal panel -->
+    <div class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div id="modal-icon-container" class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10">
+                            <!-- Icon will be inserted here -->
+                            <svg id="modal-icon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left flex-1">
+                            <h3 class="text-base font-semibold leading-6 text-gray-900" id="modal-title">
+                                Confirm Action
+                            </h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500" id="modal-message">
+                                    Are you sure you want to proceed with this action?
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-2">
+                    <button type="button" id="modal-confirm-btn" class="inline-flex w-full justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm sm:w-auto transition">
+                        Confirm
+                    </button>
+                    <button type="button" id="modal-cancel-btn" class="mt-3 inline-flex w-full justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto transition">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Custom Confirm Modal
+const ConfirmModal = {
+    modal: null,
+    backdrop: null,
+    iconContainer: null,
+    icon: null,
+    title: null,
+    message: null,
+    confirmBtn: null,
+    cancelBtn: null,
+    onConfirm: null,
+
+    init() {
+        this.modal = document.getElementById('confirm-modal');
+        this.backdrop = document.getElementById('modal-backdrop');
+        this.iconContainer = document.getElementById('modal-icon-container');
+        this.icon = document.getElementById('modal-icon');
+        this.title = document.getElementById('modal-title');
+        this.message = document.getElementById('modal-message');
+        this.confirmBtn = document.getElementById('modal-confirm-btn');
+        this.cancelBtn = document.getElementById('modal-cancel-btn');
+
+        // Event listeners
+        this.cancelBtn.addEventListener('click', () => this.hide());
+        this.backdrop.addEventListener('click', () => this.hide());
+        this.confirmBtn.addEventListener('click', () => {
+            if (this.onConfirm) {
+                this.onConfirm();
+            }
+            this.hide();
+        });
+
+        // ESC key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !this.modal.classList.contains('hidden')) {
+                this.hide();
+            }
+        });
+    },
+
+    show(options = {}) {
+        const {
+            title = 'Confirm Action',
+            message = 'Are you sure you want to proceed?',
+            confirmText = 'Confirm',
+            cancelText = 'Cancel',
+            type = 'warning', // 'warning', 'danger', 'info'
+            onConfirm = null
+        } = options;
+
+        this.title.textContent = title;
+        this.message.textContent = message;
+        this.confirmBtn.textContent = confirmText;
+        this.cancelBtn.textContent = cancelText;
+        this.onConfirm = onConfirm;
+
+        // Set icon and colors based on type
+        if (type === 'danger') {
+            this.iconContainer.className = 'mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10';
+            this.icon.className = 'h-6 w-6 text-red-600';
+            this.icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />';
+            this.confirmBtn.className = 'inline-flex w-full justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm bg-red-600 hover:bg-red-700 sm:w-auto transition';
+        } else if (type === 'info') {
+            this.iconContainer.className = 'mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10';
+            this.icon.className = 'h-6 w-6 text-blue-600';
+            this.icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />';
+            this.confirmBtn.className = 'inline-flex w-full justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm bg-blue-600 hover:bg-blue-700 sm:w-auto transition';
+        } else { // warning (default)
+            this.iconContainer.className = 'mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-yellow-100 sm:mx-0 sm:h-10 sm:w-10';
+            this.icon.className = 'h-6 w-6 text-yellow-600';
+            this.icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />';
+            this.confirmBtn.className = 'inline-flex w-full justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm bg-yellow-600 hover:bg-yellow-700 sm:w-auto transition';
+        }
+
+        // Show modal
+        this.modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        // Store element that opened the modal for focus return
+        this.triggerElement = document.activeElement;
+
+        // Focus cancel button (safer default)
+        setTimeout(() => this.cancelBtn.focus(), 100);
+
+        // Setup focus trap for modal
+        this._setupFocusTrap();
+    },
+
+    _setupFocusTrap() {
+        // Get all focusable elements within the modal
+        const focusableElements = this.modal.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        // Remove existing trap listener (prevent duplicates)
+        document.removeEventListener('keydown', this._trapKeyboardHandler);
+        this._trapKeyboardHandler = (e) => {
+            if (e.key !== 'Tab') return;
+
+            if (e.shiftKey) {
+                // Shift+Tab on first element -> focus last element
+                if (document.activeElement === firstElement) {
+                    e.preventDefault();
+                    lastElement.focus();
+                }
+            } else {
+                // Tab on last element -> focus first element
+                if (document.activeElement === lastElement) {
+                    e.preventDefault();
+                    firstElement.focus();
+                }
+            }
+        };
+
+        document.addEventListener('keydown', this._trapKeyboardHandler);
+    },
+
+    hide() {
+        this.modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        this.onConfirm = null;
+
+        // Remove focus trap listener
+        if (this._trapKeyboardHandler) {
+            document.removeEventListener('keydown', this._trapKeyboardHandler);
+        }
+
+        // Return focus to trigger element
+        if (this.triggerElement && typeof this.triggerElement.focus === 'function') {
+            setTimeout(() => this.triggerElement.focus(), 0);
+        }
+    }
+};
+
+// Initialize on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+    ConfirmModal.init();
+});
+</script>

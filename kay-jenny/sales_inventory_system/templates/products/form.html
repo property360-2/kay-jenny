@@ -1,0 +1,1175 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action }} Product - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">{{ action }} Product</h1>
+        <p class="mt-1 text-sm text-gray-500">
+            {% if product %}Update product details and inventory{% else %}Add a new product to your menu{% endif %}
+        </p>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+        <form method="POST" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Product Name -->
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">
+                    Product Name <span class="text-red-500">*</span>
+                </label>
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value="{{ product.name|default:'' }}"
+                    required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                    placeholder="e.g., Margherita Pizza"
+                />
+                <p id="name-error" class="mt-1 text-sm text-red-600 hidden"></p>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                </label>
+                <textarea
+                    id="description"
+                    name="description"
+                    rows="3"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                    placeholder="Describe your product..."
+                >{{ product.description|default:'' }}</textarea>
+            </div>
+
+            <!-- Requires BOM Toggle -->
+            <div class="pt-4 border-t border-gray-200">
+                <div class="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div>
+                        <label for="requires-bom-toggle" class="block text-sm font-semibold text-gray-900 mb-1">
+                            <span class="material-icons align-middle inline mr-1">inventory_2</span> Requires Bill of Materials (BOM)?
+                        </label>
+                        <p class="text-xs text-gray-600">
+                            <span class="requires-bom-off">Simple stock item (e.g., Coca-Cola, bottled water)</span>
+                            <span class="requires-bom-on hidden">Manufactured product with recipe (e.g., assembled items)</span>
+                        </p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            id="requires-bom-toggle"
+                            name="requires_bom"
+                            {% if product.requires_bom %}checked{% endif %}
+                            class="w-6 h-6 appearance-none rounded-full bg-gray-300 checked:bg-green-500 cursor-pointer transition-colors"
+                        />
+                        <span class="toggle-label absolute left-1 text-white text-xs font-bold pointer-events-none">
+                            {% if product.requires_bom %}ON{% else %}OFF{% endif %}
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Price and Stock -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="price" class="block text-sm font-medium text-gray-700 mb-1">
+                        Price (₱) <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="number"
+                        id="price"
+                        name="price"
+                        value="{{ product.price|default:'' }}"
+                        step="0.01"
+                        min="0.01"
+                        required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                        placeholder="0.00"
+                    />
+                    <p id="price-error" class="mt-1 text-sm text-red-600 hidden"></p>
+                </div>
+
+                <!-- Stock Quantity (only for simple products) -->
+                <div id="stock-field-container" {% if product.requires_bom %}style="display:none"{% endif %}>
+                    <label for="stock" class="block text-sm font-medium text-gray-700 mb-1">
+                        Stock Quantity <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="number"
+                        id="stock"
+                        name="stock"
+                        value="{{ product.stock|default:'0' }}"
+                        min="0"
+                        step="1"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                        placeholder="0"
+                    />
+                    <p id="stock-error" class="mt-1 text-sm text-red-600 hidden"></p>
+                </div>
+            </div>
+
+            <!-- Threshold and Category -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="threshold" class="block text-sm font-medium text-gray-700 mb-1">
+                        Low Stock Threshold
+                    </label>
+                    <input
+                        type="number"
+                        id="threshold"
+                        name="threshold"
+                        value="{{ product.threshold|default:'10' }}"
+                        min="0"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                        placeholder="10"
+                    />
+                    <p class="mt-1 text-xs text-gray-500">Alert when stock falls below this number</p>
+                </div>
+
+                <div>
+                    <label for="category" class="block text-sm font-medium text-gray-700 mb-1">
+                        Category
+                    </label>
+                    <select
+                        id="category"
+                        name="category"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                    >
+                        <option value="">-- Select Category --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Ingredients (Recipe) - REQUIRED for manufactured products -->
+            <div id="ingredients-section-container" class="pt-4 border-t border-gray-200" {% if not product.requires_bom %}style="display:none"{% endif %}>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-3">
+                        Ingredients <span class="text-red-500">*</span>
+                        <span class="text-xs text-gray-500 font-normal">Add the ingredients needed for this product</span>
+                    </label>
+
+                    <!-- Ingredient Search & Add -->
+                    <div class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <!-- Ingredient Search -->
+                            <div class="relative">
+                                <input
+                                    type="text"
+                                    id="ingredient-search"
+                                    placeholder="Search ingredients..."
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500"
+                                    autocomplete="off"
+                                />
+                                <div id="ingredient-suggestions" class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto"></div>
+                            </div>
+
+                            <!-- Quantity Input -->
+                            <input
+                                type="number"
+                                id="ingredient-quantity"
+                                placeholder="Quantity"
+                                step="0.01"
+                                min="0.01"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500"
+                            />
+
+                            <!-- Add Button -->
+                            <button
+                                type="button"
+                                id="add-ingredient-btn"
+                                class="px-4 py-2 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium transition flex items-center justify-center gap-1"
+                            >
+                                <span class="material-icons text-base">add_circle</span> Add Ingredient
+                            </button>
+                        </div>
+                        <p id="ingredient-error" class="mt-2 text-sm text-red-600 hidden"></p>
+
+                        <!-- Add New Ingredient Button -->
+                        <div class="mt-3">
+                            <button
+                                type="button"
+                                id="add-new-ingredient-btn"
+                                class="text-sm px-3 py-1.5 text-fjc-blue-600 hover:text-fjc-blue-700 hover:bg-blue-50 rounded-lg border border-fjc-blue-300 hover:border-fjc-blue-400 font-medium transition"
+                            >
+                                + Add New Ingredient to System
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Selected Ingredients List -->
+                    <div id="ingredients-list" class="space-y-2 mb-4">
+                        {% if product.recipe.ingredients.all %}
+                            {% for item in product.recipe.ingredients.all %}
+                            <div class="ingredient-item flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-200" data-ingredient-id="{{ item.ingredient.id }}">
+                                <div>
+                                    <p class="font-medium text-gray-900">{{ item.ingredient.name }}</p>
+                                    <p class="text-xs text-gray-500">{{ item.ingredient.unit }}</p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        value="{{ item.quantity }}"
+                                        step="0.01"
+                                        min="0.01"
+                                        class="ingredient-qty w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                    />
+                                    <span class="text-sm text-gray-600">{{ item.ingredient.unit }}</span>
+                                    <button type="button" class="remove-ingredient px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 text-sm font-medium transition">Remove</button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="ingredients-empty" class="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <span class="material-icons text-5xl mb-2 block">inventory_2</span>
+                        <p class="text-gray-600 mb-2">No ingredients added yet</p>
+                        <p class="text-xs text-gray-500">Search and add ingredients above</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Upload -->
+            <div>
+                <label for="image" class="block text-sm font-medium text-gray-700 mb-1">
+                    Product Image
+                </label>
+                {% if product.image %}
+                <div class="mb-2">
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}" class="h-32 rounded-lg border border-gray-200">
+                </div>
+                {% endif %}
+                <input
+                    type="file"
+                    id="image"
+                    name="image"
+                    accept="image/*"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                />
+                <p class="mt-1 text-xs text-gray-500">Upload a product image (JPG, PNG, etc.)</p>
+            </div>
+
+            <!-- Recipe/BOM Section (only for editing) -->
+            {% if product %}
+            <div class="pt-6 border-t border-gray-200">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Recipe (Bill of Materials)</h3>
+                        <p class="text-sm text-gray-500 mt-1">Define ingredients and quantities for this product</p>
+                    </div>
+                    <a href="{% url 'products:recipe_edit' product.id %}" class="px-4 py-2 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium text-sm flex items-center gap-1">
+                        <span class="material-icons text-base">add_circle</span> Manage Recipe
+                    </a>
+                </div>
+
+                <!-- Recipe Preview -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                    {% if product.recipe.ingredients.all %}
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="border-b border-gray-300">
+                                <tr>
+                                    <th class="text-left py-2 px-3 font-semibold text-gray-700">Ingredient</th>
+                                    <th class="text-right py-2 px-3 font-semibold text-gray-700">Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                {% for item in product.recipe.ingredients.all %}
+                                <tr>
+                                    <td class="py-2 px-3">{{ item.ingredient.name }}</td>
+                                    <td class="py-2 px-3 text-right">{{ item.quantity }} {{ item.ingredient.unit }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-6">
+                        <span class="material-icons text-5xl mb-2 block">assignment</span>
+                        <p class="text-gray-600 mb-4">No recipe defined yet</p>
+                        <a href="{% url 'products:recipe_edit' product.id %}" class="text-fjc-blue-600 hover:text-fjc-blue-700 font-medium">
+                            Create Recipe
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Actions -->
+            <div class="flex space-x-3 pt-4">
+                <button
+                    type="submit"
+                    class="flex-1 bg-fjc-blue-600 text-white px-6 py-3 rounded-lg hover:bg-fjc-blue-700 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-fjc-blue-500"
+                >
+                    {{ action }} Product
+                </button>
+                <a
+                    href="{% url 'products:list' %}"
+                    class="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 font-medium text-center shadow-sm"
+                >
+                    Cancel
+                </a>
+            </div>
+        </form>
+
+        <!-- Add Category Modal -->
+        <div id="addCategoryModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md mx-4">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Add New Category</h3>
+
+                <form id="addCategoryForm" class="space-y-4">
+                    <div>
+                        <label for="newCategoryInput" class="block text-sm font-medium text-gray-700 mb-1">
+                            Category Name
+                        </label>
+                        <input
+                            type="text"
+                            id="newCategoryInput"
+                            placeholder="e.g., Pizzas, Drinks, Desserts"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                            autocomplete="off"
+                        />
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button
+                            type="button"
+                            id="cancelAddCategoryBtn"
+                            class="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium shadow-sm transition"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="flex-1 bg-fjc-blue-600 text-white px-4 py-2 rounded-lg hover:bg-fjc-blue-700 font-medium shadow-sm transition"
+                        >
+                            Add Category
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Ingredient Modal -->
+        <div id="addIngredientModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md mx-4">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Add New Ingredient</h3>
+
+                <form id="addIngredientForm" class="space-y-4">
+                    <!-- Ingredient Name -->
+                    <div>
+                        <label for="newIngredientName" class="block text-sm font-medium text-gray-700 mb-1">
+                            Ingredient Name <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="newIngredientName"
+                            placeholder="e.g., Flour, Tomato Sauce, Mozzarella"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                            autocomplete="off"
+                            required
+                        />
+                    </div>
+
+                    <!-- Unit of Measurement -->
+                    <div>
+                        <label for="newIngredientUnit" class="block text-sm font-medium text-gray-700 mb-1">
+                            Unit <span class="text-red-500">*</span>
+                        </label>
+                        <select
+                            id="newIngredientUnit"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                            required
+                        >
+                            <option value="">-- Select Unit --</option>
+                            <option value="g">Grams (g)</option>
+                            <option value="ml">Milliliters (ml)</option>
+                            <option value="pcs">Pieces (pcs)</option>
+                        </select>
+                    </div>
+
+                    <!-- Current Stock -->
+                    <div>
+                        <label for="newIngredientStock" class="block text-sm font-medium text-gray-700 mb-1">
+                            Current Stock <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            id="newIngredientStock"
+                            placeholder="e.g., 100"
+                            step="0.01"
+                            min="0"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                            required
+                        />
+                    </div>
+
+                    <div id="ingredientCreateError" class="text-sm text-red-600 hidden"></div>
+
+                    <div class="flex gap-3">
+                        <button
+                            type="button"
+                            id="cancelAddIngredientBtn"
+                            class="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium shadow-sm transition"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="flex-1 bg-fjc-blue-600 text-white px-4 py-2 rounded-lg hover:bg-fjc-blue-700 font-medium shadow-sm transition"
+                        >
+                            Add Ingredient
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const nameInput = document.getElementById('name');
+    const priceInput = document.getElementById('price');
+    const stockInput = document.getElementById('stock');
+    const bomToggle = document.getElementById('requires-bom-toggle');
+    const stockFieldContainer = document.getElementById('stock-field-container');
+    const ingredientsSectionContainer = document.getElementById('ingredients-section-container');
+
+    // Toggle BOM requirement
+    function handleBOMToggle() {
+        const requiresBOM = bomToggle.checked;
+        const bomOffText = document.querySelector('.requires-bom-off');
+        const bomOnText = document.querySelector('.requires-bom-on');
+
+        // Update toggle label and description
+        const toggleLabel = document.querySelector('.toggle-label');
+        if (requiresBOM) {
+            toggleLabel.textContent = 'ON';
+            stockFieldContainer.style.display = 'none';
+            ingredientsSectionContainer.style.display = 'block';
+            bomOffText.classList.add('hidden');
+            bomOnText.classList.remove('hidden');
+        } else {
+            toggleLabel.textContent = 'OFF';
+            stockFieldContainer.style.display = 'block';
+            ingredientsSectionContainer.style.display = 'none';
+            bomOffText.classList.remove('hidden');
+            bomOnText.classList.add('hidden');
+        }
+    }
+
+    bomToggle.addEventListener('change', handleBOMToggle);
+
+    // Validation functions
+    function validateName() {
+        const value = nameInput.value.trim();
+        const errorEl = document.getElementById('name-error');
+
+        if (!value) {
+            showError(nameInput, errorEl, 'Product name is required');
+            return false;
+        } else if (value.length < 2) {
+            showError(nameInput, errorEl, 'Product name must be at least 2 characters');
+            return false;
+        } else {
+            clearError(nameInput, errorEl);
+            return true;
+        }
+    }
+
+    function validatePrice() {
+        const value = parseFloat(priceInput.value);
+        const errorEl = document.getElementById('price-error');
+
+        if (!priceInput.value) {
+            showError(priceInput, errorEl, 'Price is required');
+            return false;
+        } else if (isNaN(value) || value <= 0) {
+            showError(priceInput, errorEl, 'Price must be greater than 0');
+            return false;
+        } else if (value > 99999) {
+            showError(priceInput, errorEl, 'Price must be less than ₱99,999');
+            return false;
+        } else {
+            clearError(priceInput, errorEl);
+            return true;
+        }
+    }
+
+    function validateStock() {
+        const value = parseInt(stockInput.value);
+        const errorEl = document.getElementById('stock-error');
+
+        if (stockInput.value === '' || stockInput.value === null) {
+            showError(stockInput, errorEl, 'Stock quantity is required');
+            return false;
+        } else if (isNaN(value) || value < 0) {
+            showError(stockInput, errorEl, 'Stock must be 0 or greater');
+            return false;
+        } else if (value > 999999) {
+            showError(stockInput, errorEl, 'Stock must be less than 1,000,000');
+            return false;
+        } else {
+            clearError(stockInput, errorEl);
+            return true;
+        }
+    }
+
+    function showError(input, errorEl, message) {
+        input.classList.remove('border-gray-300', 'focus:border-fjc-blue-500', 'focus:ring-fjc-blue-500');
+        input.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
+    }
+
+    function clearError(input, errorEl) {
+        input.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+        input.classList.add('border-gray-300', 'focus:border-fjc-blue-500', 'focus:ring-fjc-blue-500');
+        errorEl.textContent = '';
+        errorEl.classList.add('hidden');
+    }
+
+    // Add event listeners for real-time validation
+    nameInput.addEventListener('blur', validateName);
+    nameInput.addEventListener('input', function() {
+        if (nameInput.value.trim()) {
+            validateName();
+        }
+    });
+
+    priceInput.addEventListener('blur', validatePrice);
+    priceInput.addEventListener('input', function() {
+        if (priceInput.value) {
+            validatePrice();
+        }
+    });
+
+    stockInput.addEventListener('blur', validateStock);
+    stockInput.addEventListener('input', function() {
+        if (stockInput.value) {
+            validateStock();
+        }
+    });
+
+    // Validate on form submit
+    form.addEventListener('submit', function(e) {
+        const isNameValid = validateName();
+        const isPriceValid = validatePrice();
+        const requiresBOM = bomToggle.checked;
+        let isValid = isNameValid && isPriceValid;
+
+        // Validate based on product type
+        if (requiresBOM) {
+            // Manufactured product: validate ingredients
+            if (!validateIngredients()) {
+                isValid = false;
+            }
+        } else {
+            // Simple product: validate stock only if field is visible
+            if (stockInput && stockInput.offsetParent !== null) { // Check if visible
+                if (!validateStock()) {
+                    isValid = false;
+                }
+            }
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+
+            // Scroll to first error
+            const firstError = document.querySelector('.border-red-500');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
+        } else {
+            // Prepare form data
+            if (!requiresBOM) {
+                // Clear ingredients if simple product by ensuring empty JSON
+                let hiddenInput = document.getElementById('ingredients-data');
+                if (!hiddenInput) {
+                    hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.id = 'ingredients-data';
+                    hiddenInput.name = 'ingredients_json';
+                    form.appendChild(hiddenInput);
+                }
+                hiddenInput.value = '[]';
+            }
+
+            // Disable submit button and show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" style="opacity:0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Processing...</span>';
+
+                // Restore if form submission is prevented (network error, etc.)
+                setTimeout(() => {
+                    if (submitBtn.disabled) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
+                }, 10000);
+            }
+        }
+    });
+});
+
+// ========== CATEGORY DROPDOWN MANAGEMENT ==========
+let allCategories = []; // Store all categories
+
+// Load categories on page load
+async function loadCategories() {
+    try {
+        const response = await fetch('/products/api/categories/');
+        allCategories = await response.json();
+        populateCategoryDropdown();
+    } catch (error) {
+        console.error('Error loading categories:', error);
+    }
+}
+
+// Populate category dropdown
+function populateCategoryDropdown() {
+    const categorySelect = document.getElementById('category');
+    const currentValue = categorySelect.value;
+
+    // Clear existing options except the first one
+    while (categorySelect.options.length > 1) {
+        categorySelect.remove(1);
+    }
+
+    // Add categories
+    allCategories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.name;
+        option.textContent = category.name;
+        categorySelect.appendChild(option);
+    });
+
+    // Add "Add Category" option
+    const addCategoryOption = document.createElement('option');
+    addCategoryOption.value = '__ADD_NEW__';
+    addCategoryOption.textContent = '+ Add New Category';
+    addCategoryOption.style.fontWeight = 'bold';
+    addCategoryOption.style.color = '#2563eb';
+    categorySelect.appendChild(addCategoryOption);
+
+    // Restore previous selection if it exists
+    if (currentValue && currentValue !== '__ADD_NEW__') {
+        categorySelect.value = currentValue;
+    }
+}
+
+// Handle category dropdown change
+function handleCategoryChange() {
+    const categorySelect = document.getElementById('category');
+    const modal = document.getElementById('addCategoryModal');
+    const newCategoryInput = document.getElementById('newCategoryInput');
+
+    if (categorySelect.value === '__ADD_NEW__') {
+        // Show modal
+        modal.classList.remove('hidden');
+        // Reset input and focus
+        newCategoryInput.value = '';
+        newCategoryInput.focus();
+    }
+}
+
+// Handle add category form submission
+async function handleAddCategorySubmit(e) {
+    e.preventDefault();
+
+    const newCategoryInput = document.getElementById('newCategoryInput');
+    const categoryName = newCategoryInput.value.trim();
+    const modal = document.getElementById('addCategoryModal');
+    const categorySelect = document.getElementById('category');
+    const submitBtn = document.querySelector('#addCategoryForm button[type="submit"]');
+
+    if (!categoryName) {
+        newCategoryInput.focus();
+        Toast.warning('Please enter a category name');
+        return;
+    }
+
+    // Disable submit button
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" style="opacity:0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Adding...</span>';
+
+        try {
+            const formData = new FormData();
+            formData.append('category', categoryName);
+
+            const csrfElement = document.querySelector('[name=csrfmiddlewaretoken]');
+            const csrfToken = csrfElement ? csrfElement.value : '';
+
+            const response = await fetch('/products/api/categories/create/', {
+                method: 'POST',
+                body: formData,
+                headers: csrfToken ? {
+                    'X-CSRFToken': csrfToken
+                } : {}
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Close modal
+                modal.classList.add('hidden');
+
+                // Add new category to allCategories
+                allCategories.push({ name: categoryName });
+
+                // Repopulate dropdown and select the new category
+                populateCategoryDropdown();
+                categorySelect.value = categoryName;
+
+                // Show success message
+                Toast.success(`Category "${categoryName}" added successfully!`);
+            } else {
+                Toast.error(data.message || 'Error creating category');
+            }
+        } catch (error) {
+            console.error('Error creating category:', error);
+            Toast.error('Error creating category. Please try again.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    }
+}
+
+// Setup category handlers
+document.addEventListener('DOMContentLoaded', function() {
+    // Load categories on page load
+    loadCategories();
+
+    const categorySelect = document.getElementById('category');
+    const modal = document.getElementById('addCategoryModal');
+    const addCategoryForm = document.getElementById('addCategoryForm');
+    const cancelAddCategoryBtn = document.getElementById('cancelAddCategoryBtn');
+
+    // Handle dropdown change
+    categorySelect.addEventListener('change', handleCategoryChange);
+
+    // Handle form submission
+    addCategoryForm.addEventListener('submit', handleAddCategorySubmit);
+
+    // Handle cancel button
+    cancelAddCategoryBtn.addEventListener('click', function() {
+        modal.classList.add('hidden');
+        categorySelect.value = ''; // Reset to default option
+    });
+
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+            categorySelect.value = '';
+        }
+    });
+});
+
+// ========== UTILITY FUNCTIONS ==========
+// Debounce function for search input
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// ========== INGREDIENT MANAGEMENT ==========
+let allIngredients = []; // Store all ingredients for searching
+let selectedIngredients = new Map(); // Map of ingredient_id -> { name, unit, quantity }
+
+// Fetch all ingredients on page load
+async function loadIngredients() {
+    try {
+        const response = await fetch('/products/api/ingredients/');
+        const data = await response.json();
+        allIngredients = data.results || data;
+    } catch (error) {
+        console.error('Error loading ingredients:', error);
+    }
+}
+
+// Search ingredients
+function searchIngredients(query) {
+    if (!query.trim()) return [];
+    const lowerQuery = query.toLowerCase();
+    return allIngredients.filter(ing =>
+        ing.name.toLowerCase().includes(lowerQuery) ||
+        ing.unit.toLowerCase().includes(lowerQuery)
+    );
+}
+
+// Display ingredient suggestions
+function displayIngredientSuggestions(query) {
+    const suggestionsDiv = document.getElementById('ingredient-suggestions');
+    const results = searchIngredients(query);
+
+    if (!query.trim() || results.length === 0) {
+        suggestionsDiv.classList.add('hidden');
+        return;
+    }
+
+    let html = '';
+    results.slice(0, 10).forEach(ingredient => {
+        html += `
+            <div class="ingredient-suggestion p-3 hover:bg-fjc-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition"
+                 data-id="${ingredient.id}" data-name="${ingredient.name}" data-unit="${ingredient.unit}">
+                <div class="font-medium text-gray-900">${ingredient.name}</div>
+                <div class="text-xs text-gray-500">Unit: ${ingredient.unit}</div>
+            </div>
+        `;
+    });
+
+    suggestionsDiv.innerHTML = html;
+    suggestionsDiv.classList.remove('hidden');
+
+    // Add click handlers
+    suggestionsDiv.querySelectorAll('.ingredient-suggestion').forEach(suggestion => {
+        suggestion.addEventListener('click', () => {
+            document.getElementById('ingredient-search').value = suggestion.dataset.name;
+            document.getElementById('ingredient-search').dataset.selectedId = suggestion.dataset.id;
+            document.getElementById('ingredient-search').dataset.selectedUnit = suggestion.dataset.unit;
+            suggestionsDiv.classList.add('hidden');
+        });
+    });
+}
+
+// Add ingredient to list
+function addIngredient() {
+    const searchInput = document.getElementById('ingredient-search');
+    const quantityInput = document.getElementById('ingredient-quantity');
+    const ingredientId = searchInput.dataset.selectedId;
+    const ingredientName = searchInput.value.trim();
+    const ingredientUnit = searchInput.dataset.selectedUnit;
+    const quantity = parseFloat(quantityInput.value);
+    const errorDiv = document.getElementById('ingredient-error');
+
+    // Validation
+    if (!ingredientId) {
+        errorDiv.textContent = 'Please select a valid ingredient from the suggestions';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if (!quantity || quantity <= 0) {
+        errorDiv.textContent = 'Please enter a valid quantity greater than 0';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if (selectedIngredients.has(ingredientId)) {
+        errorDiv.textContent = 'This ingredient is already added';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    // Add to map
+    selectedIngredients.set(ingredientId, {
+        id: ingredientId,
+        name: ingredientName,
+        unit: ingredientUnit,
+        quantity: quantity
+    });
+
+    // Clear inputs
+    searchInput.value = '';
+    searchInput.dataset.selectedId = '';
+    searchInput.dataset.selectedUnit = '';
+    quantityInput.value = '';
+    errorDiv.classList.add('hidden');
+    document.getElementById('ingredient-suggestions').classList.add('hidden');
+
+    // Refresh display
+    renderIngredientsList();
+}
+
+// Remove ingredient
+function removeIngredient(ingredientId) {
+    selectedIngredients.delete(ingredientId);
+    renderIngredientsList();
+}
+
+// Render ingredients list
+function renderIngredientsList() {
+    const listDiv = document.getElementById('ingredients-list');
+    const emptyDiv = document.getElementById('ingredients-empty');
+
+    if (selectedIngredients.size === 0) {
+        listDiv.innerHTML = '';
+        emptyDiv.classList.remove('hidden');
+        return;
+    }
+
+    emptyDiv.classList.add('hidden');
+
+    let html = '';
+    selectedIngredients.forEach((ing, id) => {
+        html += `
+            <div class="ingredient-item flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-200" data-ingredient-id="${id}">
+                <div>
+                    <p class="font-medium text-gray-900">${ing.name}</p>
+                    <p class="text-xs text-gray-500">${ing.unit}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <input
+                        type="number"
+                        value="${ing.quantity}"
+                        step="0.01"
+                        min="0.01"
+                        class="ingredient-qty w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                        onchange="updateIngredientQty(${id}, this.value)"
+                    />
+                    <span class="text-sm text-gray-600">${ing.unit}</span>
+                    <button type="button" class="remove-ingredient px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 text-sm font-medium transition" onclick="removeIngredient(${id})">
+                        Remove
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    listDiv.innerHTML = html;
+
+    // Create hidden input for form submission
+    updateHiddenIngredientsInput();
+}
+
+// Update ingredient quantity
+function updateIngredientQty(ingredientId, newQty) {
+    const qty = parseFloat(newQty);
+    if (qty > 0) {
+        const ing = selectedIngredients.get(ingredientId);
+        ing.quantity = qty;
+        updateHiddenIngredientsInput();
+    }
+}
+
+// Create hidden input for form submission
+function updateHiddenIngredientsInput() {
+    let hiddenInput = document.getElementById('ingredients-data');
+    if (!hiddenInput) {
+        hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.id = 'ingredients-data';
+        hiddenInput.name = 'ingredients_json';
+        document.querySelector('form').appendChild(hiddenInput);
+    }
+
+    const ingredientsArray = Array.from(selectedIngredients.values());
+    hiddenInput.value = JSON.stringify(ingredientsArray);
+}
+
+// Validate ingredients before form submit
+function validateIngredients() {
+    const errorDiv = document.getElementById('ingredient-error');
+    if (selectedIngredients.size === 0) {
+        errorDiv.textContent = 'Please add at least one ingredient';
+        errorDiv.classList.remove('hidden');
+        return false;
+    }
+    errorDiv.classList.add('hidden');
+    return true;
+}
+
+// Initialize event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    loadIngredients();
+
+    const searchInput = document.getElementById('ingredient-search');
+    const quantityInput = document.getElementById('ingredient-quantity');
+    const addBtn = document.getElementById('add-ingredient-btn');
+    const suggestionsDiv = document.getElementById('ingredient-suggestions');
+    const form = document.querySelector('form');
+
+    // Search input
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(() => {
+            displayIngredientSuggestions(searchInput.value);
+        }, 300));
+
+        searchInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                suggestionsDiv.classList.add('hidden');
+            }, 200);
+        });
+
+        // Add on Enter key
+        quantityInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addIngredient();
+            }
+        });
+    }
+
+    // Add button
+    if (addBtn) {
+        addBtn.addEventListener('click', addIngredient);
+    }
+
+    // Note: Form validation is handled in the main submit listener above (lines 565-627)
+    // Ingredient validation only runs when BOM is required
+
+    // Load existing ingredients if editing
+    const ingredientsList = document.getElementById('ingredients-list');
+    if (ingredientsList && ingredientsList.children.length > 0) {
+        const items = ingredientsList.querySelectorAll('.ingredient-item[data-ingredient-id]');
+        items.forEach(item => {
+            const id = parseInt(item.dataset.ingredientId);
+            const qtyInput = item.querySelector('.ingredient-qty');
+            const quantity = parseFloat(qtyInput.value);
+            const name = item.querySelector('p.font-medium').textContent;
+            const unit = item.querySelector('p.text-xs').textContent;
+
+            selectedIngredients.set(id, { id, name, unit, quantity });
+        });
+        updateHiddenIngredientsInput();
+    }
+
+    // ========== ADD NEW INGREDIENT HANDLERS ==========
+    const addNewIngredientBtn = document.getElementById('add-new-ingredient-btn');
+    const addIngredientModal = document.getElementById('addIngredientModal');
+    const addIngredientForm = document.getElementById('addIngredientForm');
+    const cancelAddIngredientBtn = document.getElementById('cancelAddIngredientBtn');
+    const ingredientCreateError = document.getElementById('ingredientCreateError');
+
+    // Show modal
+    if (addNewIngredientBtn) {
+        addNewIngredientBtn.addEventListener('click', function() {
+            addIngredientModal.classList.remove('hidden');
+            document.getElementById('newIngredientName').focus();
+        });
+    }
+
+    // Handle form submission
+    if (addIngredientForm) {
+        addIngredientForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = addIngredientForm.querySelector('button[type="submit"]');
+            const name = document.getElementById('newIngredientName').value.trim();
+            const unit = document.getElementById('newIngredientUnit').value.trim();
+            const currentStock = document.getElementById('newIngredientStock').value.trim();
+
+            // Clear previous error
+            ingredientCreateError.classList.add('hidden');
+
+            if (!name || !unit || !currentStock) {
+                ingredientCreateError.textContent = 'Please fill in all required fields';
+                ingredientCreateError.classList.remove('hidden');
+                return;
+            }
+
+            // Disable submit button
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" style="opacity:0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Creating...</span>';
+
+                try {
+                    const formData = new FormData();
+                    formData.append('name', name);
+                    formData.append('unit', unit);
+                    formData.append('current_stock', currentStock);
+
+                    const csrfElement = document.querySelector('[name=csrfmiddlewaretoken]');
+                    const csrfToken = csrfElement ? csrfElement.value : '';
+
+                    const response = await fetch('/products/api/ingredients/create/', {
+                        method: 'POST',
+                        body: formData,
+                        headers: csrfToken ? {
+                            'X-CSRFToken': csrfToken
+                        } : {}
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Add to allIngredients list
+                        allIngredients.push(data.ingredient);
+
+                        // Auto-add to selectedIngredients (user's choice = YES)
+                        selectedIngredients.set(data.ingredient.id, {
+                            id: data.ingredient.id,
+                            name: data.ingredient.name,
+                            unit: data.ingredient.unit,
+                            quantity: 1  // Default quantity of 1
+                        });
+
+                        // Update display
+                        renderIngredientsList();
+
+                        // Close modal
+                        addIngredientModal.classList.add('hidden');
+
+                        // Clear form
+                        addIngredientForm.reset();
+
+                        // Show success message
+                        Toast.success(`Ingredient "${name}" created and added successfully!`);
+                    } else {
+                        Toast.error(data.message || 'Error creating ingredient');
+                        ingredientCreateError.textContent = data.message || 'Error creating ingredient';
+                        ingredientCreateError.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error('Error creating ingredient:', error);
+                    Toast.error('Error creating ingredient. Please try again.');
+                    ingredientCreateError.textContent = 'Error creating ingredient. Please try again.';
+                    ingredientCreateError.classList.remove('hidden');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            }
+        });
+    }
+
+    // Handle cancel button
+    if (cancelAddIngredientBtn) {
+        cancelAddIngredientBtn.addEventListener('click', function() {
+            addIngredientModal.classList.add('hidden');
+            addIngredientForm.reset();
+            ingredientCreateError.classList.add('hidden');
+        });
+    }
+
+    // Close modal when clicking outside
+    if (addIngredientModal) {
+        addIngredientModal.addEventListener('click', function(e) {
+            if (e.target === addIngredientModal) {
+                addIngredientModal.classList.add('hidden');
+                addIngredientForm.reset();
+                ingredientCreateError.classList.add('hidden');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

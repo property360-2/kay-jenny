@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load forecast_filters %}
+
+{% block title %}Sales Forecast - Cafe Cantina{% endblock %}
+
+{% block content %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js" defer></script>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h1 class="text-3xl font-bold text-fjc-blue-800">Sales Forecast</h1>
+            <p class="mt-2 text-sm text-gray-600">Simple regression forecast using recent sales history</p>
+        </div>
+        <a href="{% url 'analytics:dashboard' %}" class="inline-flex items-center gap-2 bg-fjc-blue-700 hover:bg-fjc-blue-800 text-white font-semibold py-2 px-4 rounded-lg shadow border border-fjc-blue-800 transition">
+            <span class="material-icons text-sm">arrow_back</span>
+            <span>Back to Analytics</span>
+        </a>
+    </div>
+
+    {% if forecast_result.success %}
+    <!-- Parameters -->
+    <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-6">
+        <h2 class="text-xl font-semibold text-fjc-blue-800 mb-4">Forecast Settings</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-fjc-blue-50 rounded-lg p-4">
+                <p class="text-sm text-fjc-blue-700 font-medium">Historical Window</p>
+                <p class="text-2xl font-bold text-fjc-blue-800">{{ days_back }} days</p>
+            </div>
+            <div class="bg-fjc-yellow-50 rounded-lg p-4">
+                <p class="text-sm text-fjc-blue-700 font-medium">Forecast Horizon</p>
+                <p class="text-2xl font-bold text-fjc-blue-800">{{ days_ahead }} days</p>
+            </div>
+            <div class="bg-fjc-blue-50 rounded-lg p-4">
+                <p class="text-sm text-fjc-blue-700 font-medium">Model</p>
+                <p class="text-lg font-bold text-fjc-blue-800">Simple Regression</p>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-fjc-blue-100">
+            <form method="GET" class="flex flex-wrap items-end gap-4">
+                <div>
+                    <label for="days_back" class="block text-sm font-medium text-fjc-blue-800 mb-1">Historical Days (7-90)</label>
+                    <input type="number" id="days_back" name="days_back" value="{{ days_back }}" min="7" max="90"
+                           class="w-32 px-3 py-2 border border-fjc-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-600">
+                </div>
+                <div>
+                    <label for="days_ahead" class="block text-sm font-medium text-fjc-blue-800 mb-1">Forecast Days (1-30)</label>
+                    <input type="number" id="days_ahead" name="days_ahead" value="{{ days_ahead }}" min="1" max="30"
+                           class="w-32 px-3 py-2 border border-fjc-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-600">
+                </div>
+                <button type="submit" class="bg-fjc-blue-700 hover:bg-fjc-blue-800 text-white font-semibold py-2 px-6 rounded-lg shadow transition border border-fjc-blue-800">
+                    Update Forecast
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Historical Avg Daily Revenue</h3>
+            <p class="text-3xl font-bold text-fjc-blue-800">PHP {{ forecast_result.summary.historical_avg|floatformat:2 }}</p>
+            <p class="text-sm text-gray-600 mt-1">Total: PHP {{ forecast_result.summary.historical_total|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Forecast Avg Daily Revenue</h3>
+            <p class="text-3xl font-bold text-fjc-blue-800">PHP {{ forecast_result.summary.forecast_avg|floatformat:2 }}</p>
+            <p class="text-sm text-gray-600 mt-1">Total: PHP {{ forecast_result.summary.forecast_total|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-6">
+            <h3 class="text-sm font-medium text-gray-600 mb-2">Forecast Range</h3>
+            <p class="text-lg font-bold text-fjc-blue-800">
+                PHP {{ forecast_result.summary.forecast_min|floatformat:2 }} - PHP {{ forecast_result.summary.forecast_max|floatformat:2 }}
+            </p>
+            <p class="text-sm text-gray-600 mt-1">Min - Max daily revenue</p>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-6">
+        <h2 class="text-xl font-semibold text-fjc-blue-800 mb-4">Regression Forecast</h2>
+        <div class="relative h-[400px]">
+            <canvas id="forecastChart"></canvas>
+        </div>
+        <div class="mt-4 flex justify-center gap-6 text-sm">
+            <div class="flex items-center">
+                <div class="w-4 h-4 bg-fjc-blue-600 rounded mr-2"></div>
+                <span>Historical Data</span>
+            </div>
+            <div class="flex items-center">
+                <div class="w-4 h-4 bg-fjc-yellow-500 rounded mr-2"></div>
+                <span>Forecast</span>
+            </div>
+            <div class="flex items-center">
+                <div class="w-4 h-4 bg-fjc-blue-50 rounded mr-2"></div>
+                <span>Confidence Interval</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast Table -->
+    <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-fjc-blue-200 bg-fjc-yellow-50">
+            <h2 class="text-xl font-semibold text-fjc-blue-800">Detailed Forecast</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-fjc-yellow-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-fjc-blue-800 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-fjc-blue-800 uppercase tracking-wider">Day</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-fjc-blue-800 uppercase tracking-wider">Forecast Revenue</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-fjc-blue-800 uppercase tracking-wider">Lower Bound</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-fjc-blue-800 uppercase tracking-wider">Upper Bound</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for item in forecast_result.forecast %}
+                    <tr class="hover:bg-fjc-yellow-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-fjc-blue-800">{{ item.date }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ item.day_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-fjc-blue-800">PHP {{ item.value|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">PHP {{ forecast_result.confidence_intervals|index:forloop.counter0|get_item:'lower'|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">PHP {{ forecast_result.confidence_intervals|index:forloop.counter0|get_item:'upper'|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-lg font-medium text-red-800">Unable to Generate Forecast</h3>
+                <p class="mt-2 text-sm text-red-700">{{ forecast_result.message }}</p>
+                {% if forecast_result.error %}
+                <p class="mt-2 text-xs text-red-600">Technical details: {{ forecast_result.error }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if forecast_result.success %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('forecastChart').getContext('2d');
+
+    const historicalData = {{ forecast_result.historical|safe }};
+    const forecastData = {{ forecast_result.forecast|safe }};
+    const lowerBounds = {{ forecast_result.confidence_intervals_lower|safe }};
+    const upperBounds = {{ forecast_result.confidence_intervals_upper|safe }};
+
+    const labels = [
+        ...historicalData.map(item => item.date),
+        ...forecastData.map(item => item.date)
+    ];
+
+    const historicalValues = historicalData.map(item => item.value);
+    const forecastValues = forecastData.map(item => item.value);
+    const lowerValues = lowerBounds.map(item => item.value);
+    const upperValues = upperBounds.map(item => item.value);
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Historical',
+                    data: [...historicalValues, ...Array(forecastValues.length).fill(null)],
+                    borderColor: 'rgba(63, 53, 34, 0.9)',
+                    backgroundColor: 'rgba(63, 53, 34, 0.08)',
+                    tension: 0.3,
+                    borderWidth: 2,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Forecast',
+                    data: [...Array(historicalValues.length).fill(null), ...forecastValues],
+                    borderColor: 'rgba(95, 88, 53, 0.95)',
+                    backgroundColor: 'rgba(95, 88, 53, 0.12)',
+                    tension: 0.3,
+                    borderWidth: 2,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Lower Bound',
+                    data: [...Array(historicalValues.length).fill(null), ...lowerValues],
+                    borderColor: 'rgba(215, 214, 205, 0.8)',
+                    backgroundColor: 'rgba(215, 214, 205, 0.25)',
+                    tension: 0.3,
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    fill: '+2'
+                },
+                {
+                    label: 'Upper Bound',
+                    data: [...Array(historicalValues.length).fill(null), ...upperValues],
+                    borderColor: 'rgba(215, 214, 205, 0.8)',
+                    backgroundColor: 'rgba(215, 214, 205, 0.25)',
+                    tension: 0.3,
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    fill: '-1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+                    ticks: {
+                        callback: function(value) {
+                            return 'PHP ' + value.toLocaleString();
+                        }
+                    }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

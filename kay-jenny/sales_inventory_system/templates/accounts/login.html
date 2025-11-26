@@ -1,0 +1,152 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Cafe Cantina</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'fjc-yellow': {
+                            50: '#f7f5ef',
+                            100: '#ede8d8',
+                            200: '#d7d6cd',
+                            300: '#c8bfa9',
+                            400: '#b39d7f',
+                            500: '#5F5835',
+                            600: '#514a2d',
+                            700: '#433d26',
+                            800: '#362f1e',
+                            900: '#2a2517',
+                        },
+                        'fjc-blue': {
+                            50: '#f3f0ea',
+                            100: '#e7dfd3',
+                            200: '#d6cbb4',
+                            300: '#c2b390',
+                            400: '#a28c67',
+                            500: '#6B5F48',
+                            600: '#3F3522',
+                            700: '#382D17',
+                            800: '#2b2112',
+                            900: '#20170c',
+                        },
+                    },
+                    fontFamily: {
+                        'sans': ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
+                        'display': ['Playfair Display', 'Georgia', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Manrope:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Manrope', 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="h-full min-h-screen bg-gradient-to-br from-fjc-yellow-50 via-white to-fjc-blue-50">
+    <div class="min-h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full space-y-8">
+            <!-- Logo & Brand -->
+            <div class="text-center space-y-3">
+                <div class="flex justify-center">
+                    <div class="w-24 h-24 rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/70 bg-white">
+                        <img src="/media/Logo/logo.jpg" alt="Cafe Cantina logo" class="w-full h-full object-cover">
+                    </div>
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-display font-semibold text-fjc-blue-700">Cafe Cantina</h2>
+                <p class="text-sm text-fjc-blue-600">Sales & Inventory Management</p>
+            </div>
+
+            <!-- Messages -->
+            {% if messages %}
+            <div class="space-y-2">
+                {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}bg-red-50 border-red-200 text-red-800{% elif message.tags == 'success' %}bg-green-50 border-green-200 text-green-800{% else %}bg-blue-50 border-blue-200 text-blue-800{% endif %} border rounded-lg px-4 py-3" role="alert">
+                    <p class="text-sm font-medium">{{ message }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Login Form -->
+            <div class="bg-white/90 backdrop-blur rounded-2xl shadow-2xl border border-fjc-yellow-200 p-8">
+                <form method="POST" class="space-y-6" action="{% url 'accounts:login' %}">
+                    {% csrf_token %}
+
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+                            Username
+                        </label>
+                        <input
+                            id="username"
+                            name="username"
+                            type="text"
+                            autocomplete="username"
+                            required
+                            class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                            placeholder="Enter your username"
+                        />
+                    </div>
+
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                            Password
+                        </label>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            autocomplete="current-password"
+                            required
+                            class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
+                            placeholder="Enter your password"
+                        />
+                    </div>
+
+                    <div>
+                        <button
+                            type="submit"
+                            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-fjc-blue-700 via-fjc-blue-600 to-fjc-yellow-500 hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-fjc-blue-600 transition-all duration-200"
+                        >
+                            Sign in
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Demo Credentials -->
+                <div class="mt-6 border-t border-fjc-yellow-200 pt-6">
+                    <p class="text-xs text-fjc-blue-600 text-center mb-3 tracking-wide uppercase">Demo Credentials</p>
+                    <div class="bg-fjc-yellow-50 rounded-lg p-3 space-y-1 border border-fjc-yellow-200">
+                        <p class="text-xs text-fjc-blue-700">
+                            nilagay ko lang to for the sake of demonstration
+                        </p>
+                        <p class="text-xs text-fjc-blue-700">
+                            <span class="font-semibold">Admin:</span> username: <code class="bg-white px-1 py-0.5 rounded">admin</code> / password: <code class="bg-white px-1 py-0.5 rounded">admin123</code>
+                        </p>
+                        <p class="text-xs text-fjc-blue-700">
+                            <span class="font-semibold">Cashier/Staff:</span> username: <code class="bg-white px-1 py-0.5 rounded">cashier</code> / password: <code class="bg-white px-1 py-0.5 rounded">cashier123</code>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

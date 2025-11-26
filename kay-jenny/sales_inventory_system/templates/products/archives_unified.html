@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+
+{% block title %}Archives - Cafe Cantina{% endblock %}
+
+{% block content %}
+<style>
+    .type-filter {
+        border: 1px solid #d7d6cd;
+        color: #3f3522;
+    }
+    .type-filter-active {
+        background-color: #3f3522;
+        color: #fff;
+        border-color: #3f3522;
+    }
+</style>
+
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h1 class="text-3xl font-bold text-fjc-blue-800">Archives</h1>
+            <p class="mt-1 text-sm text-gray-600">View and restore archived products, users, and orders</p>
+        </div>
+        <div>
+            <a href="{% url 'products:list' %}" class="inline-flex items-center gap-2 px-4 py-2 bg-fjc-blue-700 hover:bg-fjc-blue-800 text-white rounded-lg font-semibold text-sm shadow border border-fjc-blue-800">
+                <span class="material-icons text-sm">arrow_back</span>
+                <span>Back</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-6">
+        <div class="space-y-4">
+            <div>
+                <label for="search-input" class="block text-sm font-medium text-fjc-blue-800 mb-2">Search Archives</label>
+                <input type="text" id="search-input" placeholder="Search products, users, or orders..." class="w-full px-4 py-3 border border-fjc-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-600 text-lg">
+                <p class="text-xs text-gray-600 mt-2">Start typing to search across all archived items (products, staff, orders)</p>
+            </div>
+
+            <!-- Type Filter -->
+            <div class="flex gap-2 flex-wrap">
+                <button class="type-filter type-filter-active px-4 py-2 rounded-lg font-medium transition" data-type="all">
+                    All Items
+                </button>
+                <button class="type-filter px-4 py-2 rounded-lg font-medium transition hover:bg-fjc-yellow-50" data-type="products">
+                    Products
+                </button>
+                <button class="type-filter px-4 py-2 rounded-lg font-medium transition hover:bg-fjc-yellow-50" data-type="users">
+                    Users/Staff
+                </button>
+                <button class="type-filter px-4 py-2 rounded-lg font-medium transition hover:bg-fjc-yellow-50" data-type="orders">
+                    Orders
+                </button>
+            </div>
+
+            <!-- Results Count -->
+            <div id="results-info" class="text-sm text-gray-600 hidden">
+                Found <span id="total-results" class="font-semibold">0</span> matching items
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-indicator" class="hidden flex items-center justify-center py-12">
+        <div class="flex flex-col items-center gap-3">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-fjc-blue-500"></div>
+            <p class="text-gray-600">Searching archives...</p>
+        </div>
+    </div>
+
+    <!-- Results Container -->
+    <div id="results-container" class="space-y-6">
+        <!-- Empty State -->
+        <div id="empty-state" class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-12 text-center">
+            <div class="text-5xl mb-4 text-fjc-blue-700">📂</div>
+            <h3 class="text-xl font-semibold text-fjc-blue-800 mb-2">Start Searching</h3>
+            <p class="text-gray-600">Type in the search box to find archived items</p>
+        </div>
+
+        <!-- Products Results Tab -->
+        <div id="products-section" class="hidden">
+            <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-fjc-blue-200 bg-fjc-yellow-50">
+                    <h3 class="text-lg font-semibold text-fjc-blue-800">Archived Products</h3>
+                </div>
+                <div id="products-results" class="divide-y divide-gray-200 max-h-96 overflow-y-auto"></div>
+                <div id="products-empty" class="px-6 py-8 text-center text-gray-500 hidden">
+                    No archived products found
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Results Tab -->
+        <div id="users-section" class="hidden">
+            <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-fjc-blue-200 bg-fjc-yellow-50">
+                    <h3 class="text-lg font-semibold text-fjc-blue-800">Archived Users/Staff</h3>
+                </div>
+                <div id="users-results" class="divide-y divide-gray-200 max-h-96 overflow-y-auto"></div>
+                <div id="users-empty" class="px-6 py-8 text-center text-gray-500 hidden">
+                    No archived users found
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Results Tab -->
+        <div id="orders-section" class="hidden">
+            <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-fjc-blue-200 bg-fjc-yellow-50">
+                    <h3 class="text-lg font-semibold text-fjc-blue-800">Archived Orders</h3>
+                </div>
+                <div id="orders-results" class="divide-y divide-gray-200 max-h-96 overflow-y-auto"></div>
+                <div id="orders-empty" class="px-6 py-8 text-center text-gray-500 hidden">
+                    No archived orders found
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentType = 'all';
+    let searchTimeout;
+
+    const filterButtons = document.querySelectorAll('.type-filter');
+
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            filterButtons.forEach(b => b.classList.remove('type-filter-active'));
+            this.classList.add('type-filter-active');
+            currentType = this.dataset.type;
+            performSearch();
+        });
+    });
+
+    document.getElementById('search-input').addEventListener('keyup', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+
+        if (query.length < 1) {
+            document.getElementById('empty-state').classList.remove('hidden');
+            document.getElementById('results-info').classList.add('hidden');
+            document.getElementById('products-section').classList.add('hidden');
+            document.getElementById('users-section').classList.add('hidden');
+            document.getElementById('orders-section').classList.add('hidden');
+            return;
+        }
+
+        searchTimeout = setTimeout(() => performSearch(), 300);
+    });
+
+    function performSearch() {
+        const query = document.getElementById('search-input').value.trim();
+        if (!query) return;
+
+        document.getElementById('loading-indicator').classList.remove('hidden');
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('results-info').classList.add('hidden');
+
+        fetch(`/products/api/search-archives/?q=${encodeURIComponent(query)}&type=${currentType}`)
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data);
+                document.getElementById('loading-indicator').classList.add('hidden');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('loading-indicator').classList.add('hidden');
+            });
+    }
+
+    function itemRow(title, subtitle, badgeText) {
+        return `
+            <div class="px-6 py-4 hover:bg-fjc-yellow-50 transition flex justify-between items-center">
+                <div>
+                    <p class="font-semibold text-fjc-blue-800">${title}</p>
+                    <p class="text-sm text-gray-600">${subtitle}</p>
+                </div>
+                <span class="inline-block px-2 py-1 rounded text-xs font-semibold bg-fjc-blue-50 text-fjc-blue-800">${badgeText}</span>
+            </div>
+        `;
+    }
+
+    function displayResults(data) {
+        const { products = [], users = [], orders = [] } = data;
+        let totalResults = 0;
+
+        const productsResults = document.getElementById('products-results');
+        const usersResults = document.getElementById('users-results');
+        const ordersResults = document.getElementById('orders-results');
+
+        productsResults.innerHTML = '';
+        usersResults.innerHTML = '';
+        ordersResults.innerHTML = '';
+
+        // Products
+        if (currentType === 'all' || currentType === 'products') {
+            if (products.length) {
+                document.getElementById('products-section').classList.remove('hidden');
+                document.getElementById('products-empty').classList.add('hidden');
+                totalResults += products.length;
+                products.forEach(p => {
+                    productsResults.insertAdjacentHTML('beforeend', itemRow(p.name, `SKU: ${p.sku || 'N/A'}`, 'Product'));
+                });
+            } else {
+                document.getElementById('products-empty').classList.remove('hidden');
+            }
+        } else {
+            document.getElementById('products-section').classList.add('hidden');
+        }
+
+        // Users
+        if (currentType === 'all' || currentType === 'users') {
+            if (users.length) {
+                document.getElementById('users-section').classList.remove('hidden');
+                document.getElementById('users-empty').classList.add('hidden');
+                totalResults += users.length;
+                users.forEach(u => {
+                    usersResults.insertAdjacentHTML('beforeend', itemRow(u.username || u.name, u.email || 'No email', 'User/Staff'));
+                });
+            } else {
+                document.getElementById('users-empty').classList.remove('hidden');
+            }
+        } else {
+            document.getElementById('users-section').classList.add('hidden');
+        }
+
+        // Orders
+        if (currentType === 'all' || currentType === 'orders') {
+            if (orders.length) {
+                document.getElementById('orders-section').classList.remove('hidden');
+                document.getElementById('orders-empty').classList.add('hidden');
+                totalResults += orders.length;
+                orders.forEach(o => {
+                    ordersResults.insertAdjacentHTML('beforeend', itemRow(o.order_number, `Customer: ${o.customer_name || 'Walk-in'}`, 'Order'));
+                });
+            } else {
+                document.getElementById('orders-empty').classList.remove('hidden');
+            }
+        } else {
+            document.getElementById('orders-section').classList.add('hidden');
+        }
+
+        if (totalResults > 0) {
+            const info = document.getElementById('results-info');
+            document.getElementById('total-results').textContent = totalResults;
+            info.classList.remove('hidden');
+        }
+    }
+</script>
+{% endblock %}

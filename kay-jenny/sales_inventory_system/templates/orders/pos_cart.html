@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}Cart - Cafe Cantina POS{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Your Cart</h1>
+            <p class="mt-1 text-sm text-gray-500">Review your items before checkout</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'orders:pos_home' %}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium">
+                ← Continue Shopping
+            </a>
+        </div>
+    </div>
+
+    {% if cart %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Cart Items -->
+        <div class="lg:col-span-2 space-y-4">
+            <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <h2 class="text-lg font-semibold text-gray-900">Items in Cart ({{ cart|length }})</h2>
+                </div>
+
+                <div class="divide-y divide-gray-200">
+                    {% for product_id, item in cart.items %}
+                    <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50" data-product-id="{{ product_id }}">
+                        <div class="flex-1">
+                            <h3 class="font-medium text-gray-900">{{ item.name }}</h3>
+                            <p class="text-sm text-gray-600 mt-1">
+                                ₱{{ item.price|floatformat:2 }} × <span class="quantity-display">{{ item.quantity }}</span>
+                                = <span class="font-semibold text-fjc-blue-600">₱{{ item.subtotal|floatformat:2 }}</span>
+                            </p>
+                        </div>
+
+                        <div class="flex items-center gap-4">
+                            <!-- Quantity Control -->
+                            <div class="flex items-center gap-2 bg-gray-100 rounded-lg">
+                                <button class="qty-decrease px-3 py-2 hover:bg-gray-200 font-medium text-lg">−</button>
+                                <input type="number" class="qty-input w-12 text-center border-0 bg-gray-100 font-medium"
+                                       value="{{ item.quantity }}" min="1" max="999">
+                                <button class="qty-increase px-3 py-2 hover:bg-gray-200 font-medium text-lg">+</button>
+                            </div>
+
+                            <!-- Remove Button -->
+                            <button class="remove-btn px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Cart Summary -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6 sticky top-24 space-y-6">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
+                    <div class="space-y-3 py-4 border-y border-gray-200">
+                        <div class="flex justify-between text-gray-700">
+                            <span>Items:</span>
+                            <span id="item-count" class="font-medium">{{ cart|length }}</span>
+                        </div>
+                        <div class="flex justify-between text-gray-700">
+                            <span>Subtotal:</span>
+                            <span id="subtotal" class="font-medium">₱{{ total|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-lg font-bold text-gray-900 pt-4">
+                        <span>Total:</span>
+                        <span id="total" class="text-fjc-blue-600">₱{{ total|floatformat:2 }}</span>
+                    </div>
+                </div>
+
+                <a href="{% url 'orders:pos_checkout' %}" class="block w-full bg-fjc-blue-600 text-white py-3 rounded-lg hover:bg-fjc-blue-700 font-medium text-center transition">
+                    Proceed to Checkout →
+                </a>
+
+                <button onclick="clearCart()" class="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 font-medium transition">
+                    Clear Cart
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Empty Cart State -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-12 text-center">
+        <div class="text-6xl mb-4">🛒</div>
+        <h2 class="text-2xl font-semibold text-gray-900 mb-2">Your cart is empty</h2>
+        <p class="text-gray-600 mb-6">Add some items from the products page to get started</p>
+        <a href="{% url 'orders:pos_home' %}" class="inline-block px-6 py-3 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium">
+            Start Shopping
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Quantity update handlers
+    document.querySelectorAll('[data-product-id]').forEach(item => {
+        const productId = item.dataset.productId;
+        const qtyInput = item.querySelector('.qty-input');
+        const qtyDisplay = item.querySelector('.quantity-display');
+        const subtotalDisplay = item.querySelector('.font-semibold');
+
+        // Decrease quantity
+        item.querySelector('.qty-decrease').addEventListener('click', function() {
+            const newQty = Math.max(1, parseInt(qtyInput.value) - 1);
+            updateQuantity(productId, newQty, qtyInput, qtyDisplay, subtotalDisplay);
+        });
+
+        // Increase quantity
+        item.querySelector('.qty-increase').addEventListener('click', function() {
+            const newQty = parseInt(qtyInput.value) + 1;
+            updateQuantity(productId, newQty, qtyInput, qtyDisplay, subtotalDisplay);
+        });
+
+        // Input change
+        qtyInput.addEventListener('change', function() {
+            const newQty = Math.max(1, parseInt(this.value));
+            this.value = newQty;
+            updateQuantity(productId, newQty, qtyInput, qtyDisplay, subtotalDisplay);
+        });
+
+        // Remove button
+        item.querySelector('.remove-btn').addEventListener('click', function() {
+            removeFromCart(productId, item);
+        });
+    });
+
+    function updateQuantity(productId, newQty, qtyInput, qtyDisplay, subtotalDisplay) {
+        fetch(`/orders/pos/update-cart/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `quantity=${newQty}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                qtyInput.value = newQty;
+                qtyDisplay.textContent = newQty;
+                subtotalDisplay.textContent = `₱${data.subtotal.toFixed(2)}`;
+                updateCartTotals(data.total);
+            } else {
+                Toast.error(data.message || 'Failed to update quantity');
+                location.reload();
+            }
+        })
+        .catch(error => {
+            Toast.error('Error updating quantity');
+            console.error('Error:', error);
+        });
+    }
+
+    function removeFromCart(productId, itemElement) {
+        if (!confirm('Remove this item from cart?')) return;
+
+        fetch(`/orders/pos/remove-from-cart/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                itemElement.remove();
+                Toast.success('Item removed from cart');
+                updateCartTotals(data.total);
+                updateItemCount(data.cart_count);
+
+                // Reload if cart is empty
+                if (data.cart_count === 0) {
+                    location.reload();
+                }
+            } else {
+                Toast.error(data.message || 'Failed to remove item');
+            }
+        })
+        .catch(error => {
+            Toast.error('Error removing item');
+            console.error('Error:', error);
+        });
+    }
+
+    function clearCart() {
+        if (!confirm('Clear all items from cart?')) return;
+        // Would need a clear-cart endpoint
+        location.reload();
+    }
+
+    function updateCartTotals(newTotal) {
+        document.getElementById('total').textContent = `₱${newTotal.toFixed(2)}`;
+        document.getElementById('subtotal').textContent = `₱${newTotal.toFixed(2)}`;
+    }
+
+    function updateItemCount(count) {
+        document.getElementById('item-count').textContent = count;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,411 @@
+{% extends 'base.html' %}
+
+{% block title %}Products - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Product Management</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage your pizza menu and inventory</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'products:ingredient_list' %}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-sm">
+                 Manage Ingredients
+            </a>
+            {% include 'components/atoms/button.html' with type='primary' text='Add New Product' href='/products/create/' %}
+        </div>
+    </div>
+
+    <!-- Low Stock Alert -->
+    {% if low_stock_count > 0 %}
+    <div class="bg-fjc-yellow-50 border-l-4 border-fjc-yellow-500 p-4 rounded-lg">
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                <span class="text-2xl"><span class="material-icons">warning</span></span>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-fjc-yellow-800">
+                    {{ low_stock_count }} product{{ low_stock_count|pluralize }} running low on stock!
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Search and Filters -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- Search -->
+            <div class="md:col-span-2">
+                <label for="search-input" class="block text-sm font-medium text-gray-700 mb-2">Search Products</label>
+                <input type="text" id="search-input" placeholder="Search by name, description, or category..." value="{{ search }}"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
+            </div>
+
+            <!-- Category Filter -->
+            <div>
+                <label for="category-filter" class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select id="category-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Stock Status Filter -->
+            <div>
+                <label for="stock-filter" class="block text-sm font-medium text-gray-700 mb-2">Stock Status</label>
+                <select id="stock-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
+                    <option value="">All</option>
+                    <option value="in_stock" {% if selected_stock_status == 'in_stock' %}selected{% endif %}>In Stock</option>
+                    <option value="low" {% if selected_stock_status == 'low' %}selected{% endif %}>Low Stock</option>
+                    <option value="out" {% if selected_stock_status == 'out' %}selected{% endif %}>Out of Stock</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Results Info -->
+        <div class="mt-4 flex items-center justify-between">
+            <p class="text-sm text-gray-600">
+                Showing <span id="results-count" class="font-semibold">{{ total_count }}</span> product{{ total_count|pluralize }}
+            </p>
+            <button id="clear-filters-btn" class="text-sm text-fjc-blue-600 hover:text-fjc-blue-700 font-medium {% if not search and not selected_category and not selected_stock_status %}hidden{% endif %}">
+                Clear Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="products-loading" class="hidden">
+        <div class="flex justify-center items-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-fjc-blue-500"></div>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    <div id="products-grid">
+        {% if products %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {% for product in products %}
+            <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+                {% if product.image %}
+                <div class="h-48 overflow-hidden bg-gray-100">
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                </div>
+                {% else %}
+                <div class="h-48 bg-gradient-to-br from-fjc-yellow-100 to-fjc-blue-100 flex items-center justify-center">
+                    <span class="material-icons text-7xl text-fjc-yellow-600">restaurant</span>
+                </div>
+                {% endif %}
+
+                <div class="p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-lg font-semibold text-gray-900 flex-1">{{ product.name }}</h3>
+                        {% if product.calculated_stock < product.threshold %}
+                        {% include 'components/atoms/badge.html' with type='warning' text='Low' %}
+                        {% elif product.calculated_stock == 0 %}
+                        {% include 'components/atoms/badge.html' with type='danger' text='Out' %}
+                        {% endif %}
+                    </div>
+
+                    {% if product.description %}
+                    <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ product.description }}</p>
+                    {% endif %}
+
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-2xl font-bold text-fjc-blue-600">₱{{ product.price }}</span>
+                        <span class="text-sm text-gray-500">Stock: <span class="font-semibold">{{ product.calculated_stock }}</span></span>
+                    </div>
+
+                    <div class="flex space-x-2">
+                        <a href="{% url 'products:detail' product.id %}" class="flex-1 bg-fjc-blue-600 text-white px-3 py-2 rounded-lg hover:bg-fjc-blue-700 font-medium text-sm text-center transition flex items-center justify-center gap-1">
+                            <span class="material-icons text-sm">visibility</span> View
+                        </a>
+                        <button onclick="archiveProduct({{ product.id }}, '{{ product.name|escapejs }}')" class="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 font-medium text-sm transition flex items-center justify-center gap-1">
+                            <span class="material-icons text-sm">archive</span> Archive
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3" id="pagination-container">
+            <p class="text-sm text-gray-600">
+                Page <span class="font-semibold">{{ page_obj.number }}</span> of <span class="font-semibold">{{ page_obj.paginator.num_pages }}</span>
+            </p>
+            <div class="flex gap-2 w-full sm:w-auto">
+                <button id="prev-page-btn" data-page="{% if page_obj.has_previous %}{{ page_obj.previous_page_number }}{% endif %}"
+                        class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition {% if not page_obj.has_previous %}opacity-50 cursor-not-allowed{% endif %}"
+                        {% if not page_obj.has_previous %}disabled{% endif %}>
+                    Previous
+                </button>
+                <button id="next-page-btn" data-page="{% if page_obj.has_next %}{{ page_obj.next_page_number }}{% endif %}"
+                        class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition {% if not page_obj.has_next %}opacity-50 cursor-not-allowed{% endif %}"
+                        {% if not page_obj.has_next %}disabled{% endif %}>
+                    Next
+                </button>
+            </div>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-12 text-center">
+            <span class="material-icons text-7xl mb-4 block">inventory_2</span>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">No products found</h3>
+            <p class="text-gray-500 mb-6">Try adjusting your filters or add a new product</p>
+            {% if search or selected_category or selected_stock_status %}
+            <button id="clear-all-btn" class="bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                Clear Filters
+            </button>
+            {% else %}
+            {% include 'components/atoms/button.html' with type='primary' text='Add Product' href='/products/create/' %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Include Toast Component -->
+{% include 'components/toast.html' %}
+
+<script>
+// Debounce function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Load products with filters
+async function loadProducts(page = 1) {
+    const searchInput = document.getElementById('search-input');
+    const categoryFilter = document.getElementById('category-filter');
+    const stockFilter = document.getElementById('stock-filter');
+    const productsGrid = document.getElementById('products-grid');
+    const loadingEl = document.getElementById('products-loading');
+
+    // Build query string
+    const params = new URLSearchParams();
+    if (searchInput.value) params.append('search', searchInput.value);
+    if (categoryFilter.value) params.append('category', categoryFilter.value);
+    if (stockFilter.value) params.append('stock_status', stockFilter.value);
+    params.append('page', page);
+
+    // Show loading
+    loadingEl.classList.remove('hidden');
+    productsGrid.classList.add('opacity-50');
+
+    try {
+        const response = await fetch(`/products/?${params.toString()}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            renderProducts(data.products, data.pagination);
+            updateResultsCount(data.pagination.total_count);
+            updateClearButton();
+        } else {
+            Toast.error('Failed to load products');
+        }
+    } catch (error) {
+        Toast.error('Network error. Please try again.');
+    } finally {
+        loadingEl.classList.add('hidden');
+        productsGrid.classList.remove('opacity-50');
+    }
+}
+
+// Render products
+function renderProducts(products, pagination) {
+    const gridContainer = document.getElementById('products-grid');
+
+    if (products.length === 0) {
+        gridContainer.innerHTML = `
+            <div class="bg-white rounded-lg shadow-md border border-gray-200 p-12 text-center">
+                <span class="material-icons text-7xl mb-4 block">inventory_2</span>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">No products found</h3>
+                <p class="text-gray-500 mb-6">Try adjusting your filters</p>
+                <button onclick="clearAllFilters()" class="bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                    Clear Filters
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">';
+
+    products.forEach(product => {
+        const imageHtml = product.image_url
+            ? `<div class="h-48 overflow-hidden bg-gray-100">
+                   <img src="${product.image_url}" alt="${product.name}" class="w-full h-full object-cover">
+               </div>`
+            : `<div class="h-48 bg-gradient-to-br from-fjc-yellow-100 to-fjc-blue-100 flex items-center justify-center">
+                   <span class="material-icons text-7xl">restaurant</span>
+               </div>`;
+
+        const badgeHtml = product.calculated_stock === 0
+            ? '<span class="inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">Out</span>'
+            : product.calculated_stock < product.threshold
+            ? '<span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-1 rounded">Low</span>'
+            : '';
+
+        html += `
+            <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+                ${imageHtml}
+                <div class="p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-lg font-semibold text-gray-900 flex-1">${product.name}</h3>
+                        ${badgeHtml}
+                    </div>
+                    ${product.description ? `<p class="text-sm text-gray-600 mb-3 line-clamp-2">${product.description}</p>` : ''}
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-2xl font-bold text-fjc-blue-600">₱${product.price}</span>
+                        <span class="text-sm text-gray-500">Stock: <span class="font-semibold">${product.calculated_stock}</span></span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <a href="/products/${product.id}/" class="flex-1 bg-fjc-blue-600 text-white px-3 py-2 rounded-lg hover:bg-fjc-blue-700 font-medium text-sm text-center transition flex items-center justify-center gap-1">
+                            <span class="material-icons text-base">visibility</span> View
+                        </a>
+                        <button onclick="archiveProduct(${product.id}, '${product.name}')"
+                                class="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 font-medium text-sm transition flex items-center justify-center gap-1">
+                            <span class="material-icons text-base">archive</span> Archive
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+
+    // Add pagination
+    if (pagination.total_pages > 1) {
+        html += `
+            <div class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p class="text-sm text-gray-600">
+                    Page <span class="font-semibold">${pagination.current_page}</span> of <span class="font-semibold">${pagination.total_pages}</span>
+                </p>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button id="prev-page-btn" data-page="${pagination.previous_page || ''}"
+                            class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition ${!pagination.has_previous ? 'opacity-50 cursor-not-allowed' : ''}"
+                            ${!pagination.has_previous ? 'disabled' : ''}>
+                        Previous
+                    </button>
+                    <button id="next-page-btn" data-page="${pagination.next_page || ''}"
+                            class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition ${!pagination.has_next ? 'opacity-50 cursor-not-allowed' : ''}"
+                            ${!pagination.has_next ? 'disabled' : ''}>
+                        Next
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    gridContainer.innerHTML = html;
+
+    // Attach pagination event listeners
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+
+    if (prevBtn && !prevBtn.disabled) {
+        prevBtn.addEventListener('click', () => loadProducts(pagination.previous_page));
+    }
+    if (nextBtn && !nextBtn.disabled) {
+        nextBtn.addEventListener('click', () => loadProducts(pagination.next_page));
+    }
+}
+
+// Update results count
+function updateResultsCount(count) {
+    const countEl = document.getElementById('results-count');
+    if (countEl) countEl.textContent = count;
+}
+
+// Update clear button visibility
+function updateClearButton() {
+    const searchInput = document.getElementById('search-input');
+    const categoryFilter = document.getElementById('category-filter');
+    const stockFilter = document.getElementById('stock-filter');
+    const clearBtn = document.getElementById('clear-filters-btn');
+
+    const hasFilters = searchInput.value || categoryFilter.value || stockFilter.value;
+    if (clearBtn) {
+        if (hasFilters) {
+            clearBtn.classList.remove('hidden');
+        } else {
+            clearBtn.classList.add('hidden');
+        }
+    }
+}
+
+// Clear all filters
+function clearAllFilters() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('category-filter').value = '';
+    document.getElementById('stock-filter').value = '';
+    loadProducts(1);
+}
+
+// Archive product with confirmation
+function archiveProduct(productId, productName) {
+    Confirm.show({
+        title: 'Archive Product',
+        message: `Archive "${productName}"? This will remove it from active listings.`,
+        confirmText: 'Archive',
+        cancelText: 'Cancel',
+        type: 'danger',
+        onConfirm: () => {
+            Loading.show();
+            window.location.href = `/products/${productId}/archive/`;
+        }
+    });
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-input');
+    const categoryFilter = document.getElementById('category-filter');
+    const stockFilter = document.getElementById('stock-filter');
+    const clearBtn = document.getElementById('clear-filters-btn');
+    const clearAllBtn = document.getElementById('clear-all-btn');
+
+    // Search with debounce
+    searchInput.addEventListener('input', debounce(() => loadProducts(1), 500));
+
+    // Filters
+    categoryFilter.addEventListener('change', () => loadProducts(1));
+    stockFilter.addEventListener('change', () => loadProducts(1));
+
+    // Clear buttons
+    if (clearBtn) clearBtn.addEventListener('click', clearAllFilters);
+    if (clearAllBtn) clearAllBtn.addEventListener('click', clearAllFilters);
+
+    // Pagination buttons (for initial load)
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+
+    if (prevBtn && !prevBtn.disabled) {
+        prevBtn.addEventListener('click', () => loadProducts(prevBtn.dataset.page));
+    }
+    if (nextBtn && !nextBtn.disabled) {
+        nextBtn.addEventListener('click', () => loadProducts(nextBtn.dataset.page));
+    }
+});
+</script>
+{% endblock %}

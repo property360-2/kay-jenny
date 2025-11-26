@@ -1,0 +1,399 @@
+{% extends 'base.html' %}
+
+{% block title %}User Management - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">User Management</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage staff and cashier accounts</p>
+        </div>
+        <div>
+            <a href="{% url 'accounts:user_create' %}" class="bg-fjc-yellow-500 hover:bg-fjc-yellow-600 text-white font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2">
+                <span class="material-icons">person_add</span> Create New User
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-600 uppercase tracking-wide">Total Users</p>
+            <p id="totalUsersCount" class="text-4xl font-bold text-fjc-blue-600 mt-2">0</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-600 uppercase tracking-wide">Active Users</p>
+            <p id="activeUsersCount" class="text-4xl font-bold text-green-600 mt-2">0</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-600 uppercase tracking-wide">Admins</p>
+            <p id="adminCount" class="text-4xl font-bold text-purple-600 mt-2">0</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-4">
+        <div class="flex flex-wrap gap-4 items-end">
+            <div class="flex-1 min-w-[200px]">
+                <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <input type="text" id="search" placeholder="Search by name, email, or username..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label for="role" class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                <select id="role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
+                    <option value="">All Roles</option>
+                </select>
+            </div>
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner" class="hidden">
+                <div class="flex items-center gap-2">
+                    <div class="animate-spin h-5 w-5 border-2 border-fjc-blue-500 border-t-transparent rounded-full"></div>
+                    <span class="text-sm text-gray-600">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Table -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+        <!-- Desktop Table View -->
+        <div id="desktopView" class="hidden md:block overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gradient-to-r from-fjc-yellow-50 to-fjc-blue-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">User</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Contact</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Role</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Joined</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="staffTableBody" class="bg-white divide-y divide-gray-200">
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                            <span class="material-icons text-4xl mb-2 block">group</span>
+                            <p class="text-lg">Loading users...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div id="mobileView" class="md:hidden divide-y divide-gray-200">
+            <div class="px-6 py-12 text-center text-gray-500">
+                <span class="material-icons text-4xl mb-2 block">group</span>
+                <p class="text-lg">Loading users...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div id="paginationContainer" class="flex justify-center items-center gap-2">
+    </div>
+</div>
+
+<script>
+// Debounce function
+function debounce(func, delay) {
+    let timeoutId;
+    return function(...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func(...args), delay);
+    };
+}
+
+// Get elements
+const searchInput = document.getElementById('search');
+const roleSelect = document.getElementById('role');
+const loadingSpinner = document.getElementById('loadingSpinner');
+const desktopView = document.getElementById('desktopView');
+const mobileView = document.getElementById('mobileView');
+const staffTableBody = document.getElementById('staffTableBody');
+const paginationContainer = document.getElementById('paginationContainer');
+
+// Load staff function
+function loadStaff(page = 1) {
+    const searchQuery = searchInput.value.trim();
+    const roleFilter = roleSelect.value;
+
+    // Show loading spinner
+    loadingSpinner.classList.remove('hidden');
+
+    // Fetch staff data
+    fetch(`{% url 'accounts:user_list' %}?search=${encodeURIComponent(searchQuery)}&role=${encodeURIComponent(roleFilter)}&page=${page}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Staff data loaded:', data);
+        if (data.success) {
+            renderStaffList(data.users);
+            renderPagination(data.pagination);
+            populateRoleFilter(data.available_roles);
+            updateStats(data.users);
+        } else {
+            console.error('API returned error:', data);
+            Toast.error('Failed to load staff data');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading staff:', error);
+        Toast.error('Error loading staff: ' + error.message);
+    })
+    .finally(() => {
+        loadingSpinner.classList.add('hidden');
+    });
+}
+
+// Render staff list
+function renderStaffList(users) {
+    console.log('Rendering staff list with users:', users);
+
+    if (users.length === 0) {
+        staffTableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                    <span class="material-icons text-4xl mb-2 block">group</span>
+                    <p class="text-lg">No users found</p>
+                    <a href="{% url 'accounts:user_create' %}" class="text-fjc-blue-600 hover:text-fjc-blue-700 font-medium mt-2 inline-block">
+                        Create your first user
+                    </a>
+                </td>
+            </tr>
+        `;
+        mobileView.innerHTML = `
+            <div class="px-6 py-12 text-center text-gray-500">
+                <span class="material-icons text-4xl mb-2 block">group</span>
+                <p class="text-lg">No users found</p>
+                <a href="{% url 'accounts:user_create' %}" class="text-fjc-blue-600 hover:text-fjc-blue-700 font-medium mt-2 inline-block">
+                    Create your first user
+                </a>
+            </div>
+        `;
+        return;
+    }
+
+    // Render desktop table
+    let tableHTML = '';
+    users.forEach(user => {
+        console.log('Processing user:', user);
+        const roleDisplay = user.role_code === 'ADMIN' ? ' Admin' : ' Cashier';
+        const roleBadgeClass = user.role_code === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
+        const statusDisplay = user.is_archived ? 'Archived' : ' Active';
+        const statusBadgeClass = user.is_archived ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800';
+        const joinedDate = new Date(user.date_joined).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+        tableHTML += `
+            <tr class="hover:bg-gray-50 transition ${user.is_archived ? 'opacity-60' : ''}">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 h-10 w-10 bg-fjc-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                            ${user.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="ml-4">
+                            <div class="text-sm font-medium text-gray-900">${user.username}</div>
+                            <div class="text-sm text-gray-500">
+                                ${user.first_name || user.last_name ? `${user.first_name} ${user.last_name}` : 'No name set'}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-900">${user.email || '-'}</div>
+                    <div class="text-sm text-gray-500">${user.phone || '-'}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleBadgeClass}">
+                        ${roleDisplay}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass}">
+                        ${statusDisplay}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${joinedDate}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div class="flex justify-end gap-2">
+                        <a href="/accounts/users/${user.id}/edit/" class="text-fjc-blue-600 hover:text-fjc-blue-900 font-semibold">
+                            <span class="material-icons">edit</span> Edit
+                        </a>
+                        <a href="/accounts/users/${user.id}/audit/" class="text-fjc-blue-600 hover:text-fjc-blue-900 font-semibold flex items-center gap-1">
+                            <span class="material-icons text-base">assignment</span> Audit
+                        </a>
+                        <button onclick="confirmArchive(${user.id}, '${user.username}')" class="${user.is_archived ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'} font-semibold flex items-center gap-1">
+                            ${user.is_archived ? '<span class="material-icons text-base">restore</span> Restore' : '<span class="material-icons text-base">archive</span> Archive'}
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    staffTableBody.innerHTML = tableHTML;
+
+    // Render mobile view
+    let mobileHTML = '';
+    users.forEach(user => {
+        const roleDisplay = user.role_code === 'ADMIN' ? ' Admin' : ' Cashier';
+        const roleBadgeClass = user.role_code === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
+        const statusDisplay = user.is_archived ? ' Archived' : ' Active';
+        const statusBadgeClass = user.is_archived ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800';
+        const joinedDate = new Date(user.date_joined).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+        mobileHTML += `
+            <div class="p-4 hover:bg-gray-50 transition ${user.is_archived ? 'opacity-60' : ''}">
+                <div class="flex items-start gap-3 mb-3">
+                    <div class="flex-shrink-0 h-12 w-12 bg-fjc-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                        ${user.username.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-base font-semibold text-gray-900">${user.username}</p>
+                        <p class="text-sm text-gray-600">
+                            ${user.first_name || user.last_name ? `${user.first_name} ${user.last_name}` : 'No name set'}
+                        </p>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleBadgeClass} whitespace-nowrap">
+                            ${roleDisplay}
+                        </span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass} whitespace-nowrap">
+                            ${statusDisplay}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="space-y-2 mb-3">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Email:</span>
+                        <span class="text-gray-900">${user.email || '-'}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Phone:</span>
+                        <span class="text-gray-900">${user.phone || '-'}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Joined:</span>
+                        <span class="text-gray-900">${joinedDate}</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <a href="/accounts/users/${user.id}/edit/" class="flex-1 text-center bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm flex items-center justify-center gap-1">
+                        <span class="material-icons text-base">edit</span> Edit
+                    </a>
+                    <a href="/accounts/users/${user.id}/audit/" class="flex-1 text-center bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm flex items-center justify-center gap-1">
+                        <span class="material-icons text-base">assignment</span> Audit
+                    </a>
+                    <button onclick="confirmArchive(${user.id}, '${user.username}')" class="flex-1 ${user.is_archived ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} text-white font-medium py-2 px-4 rounded-lg transition text-sm flex items-center justify-center gap-1">
+                        ${user.is_archived ? '<span class="material-icons text-base">restore</span> Restore' : '<span class="material-icons text-base">archive</span> Archive'}
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    mobileView.innerHTML = mobileHTML || `
+        <div class="px-6 py-12 text-center text-gray-500">
+            <span class="material-icons text-4xl mb-2 block">group</span>
+            <p class="text-lg">No users found</p>
+        </div>
+    `;
+
+    // Show the views
+    desktopView.classList.remove('hidden');
+}
+
+// Render pagination
+function renderPagination(pagination) {
+    let html = '';
+
+    if (pagination.has_previous) {
+        html += `
+            <button onclick="loadStaff(${pagination.previous_page_number})" class="px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition">
+                ← Previous
+            </button>
+        `;
+    }
+
+    // Page info
+    html += `
+        <span class="px-4 py-2 text-sm text-gray-600">
+            Page ${pagination.page} of ${pagination.total_pages}
+        </span>
+    `;
+
+    if (pagination.has_next) {
+        html += `
+            <button onclick="loadStaff(${pagination.next_page_number})" class="px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition">
+                Next →
+            </button>
+        `;
+    }
+
+    paginationContainer.innerHTML = html;
+}
+
+// Populate role filter
+function populateRoleFilter(roles) {
+    const currentValue = roleSelect.value;
+    let html = '<option value="">All Roles</option>';
+
+    roles.forEach(role => {
+        html += `<option value="${role}">${role}</option>`;
+    });
+
+    roleSelect.innerHTML = html;
+    roleSelect.value = currentValue;
+}
+
+// Update stats
+function updateStats(users) {
+    const totalUsers = users.length;
+    const activeUsers = users.filter(u => !u.is_archived).length;
+    const admins = users.filter(u => u.role_code === 'ADMIN').length;
+
+    document.getElementById('totalUsersCount').textContent = totalUsers;
+    document.getElementById('activeUsersCount').textContent = activeUsers;
+    document.getElementById('adminCount').textContent = admins;
+}
+
+// Confirm archive
+function confirmArchive(userId, username) {
+    Confirm.show({
+        title: 'Archive User',
+        message: `Are you sure you want to archive ${username}? They will no longer be able to log in.`,
+        confirmText: 'Archive',
+        cancelText: 'Cancel',
+        type: 'danger',
+        onConfirm: () => {
+            Loading.show();
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/accounts/users/${userId}/archive/`;
+            form.innerHTML = `<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+
+// Event listeners
+searchInput.addEventListener('input', debounce(() => loadStaff(), 500));
+roleSelect.addEventListener('change', () => loadStaff());
+
+// Load staff on page load
+loadStaff();
+</script>
+{% endblock %}

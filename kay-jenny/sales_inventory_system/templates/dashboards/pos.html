@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+
+{% block title %}POS - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Point of Sale</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage and process customer orders</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'orders:pos_create_order' %}" class="bg-fjc-yellow-500 hover:bg-fjc-yellow-600 text-white font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2">
+                <span class="material-icons">add_circle</span> New Order
+            </a>
+            <a href="{% url 'orders:list' %}" class="bg-fjc-blue-500 hover:bg-fjc-blue-600 text-white font-semibold px-4 py-2 rounded-lg transition">
+                View All Orders
+            </a>
+        </div>
+    </div>
+
+    <!-- Order Summary Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <p class="text-xs font-medium text-gray-600 uppercase tracking-wide">Total Orders Today</p>
+            <p class="text-5xl font-bold text-fjc-blue-600 mt-3">{{ today_orders_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <p class="text-xs font-medium text-gray-600 uppercase tracking-wide">Pending Payment</p>
+            <p class="text-5xl font-bold text-fjc-yellow-600 mt-3">{{ pending_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <p class="text-xs font-medium text-gray-600 uppercase tracking-wide">Completed Today</p>
+            <p class="text-5xl font-bold text-green-600 mt-3">{{ today_completed }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <p class="text-xs font-medium text-gray-600 uppercase tracking-wide">Today's Revenue</p>
+            <p class="text-3xl font-bold text-purple-600 mt-3">₱{{ today_revenue }}</p>
+        </div>
+    </div>
+
+    <!-- Orders Status Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Pending Orders (Need Payment Confirmation) -->
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-fjc-yellow-50 to-fjc-yellow-100">
+                <h3 class="text-lg font-semibold text-gray-900"><span class="material-icons">schedule</span> Pending Payment</h3>
+                <p class="text-sm text-gray-600 mt-1">Waiting for payment confirmation</p>
+            </div>
+            <div class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                {% for order in pending_orders %}
+                <div class="p-4 hover:bg-gray-50 transition">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="font-semibold text-gray-900">{{ order.order_number }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ order.customer_name }} - Table {{ order.table_number }}</p>
+                        </div>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Pending
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-2">
+                        {% for item in order.items.all %}
+                        <div>{{ item.quantity }}x {{ item.product.name }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <p class="text-sm text-fjc-yellow-600 font-bold">₱{{ order.total_amount }}</p>
+                        {% if order.payment.method == 'CASH' and order.payment.status == 'PENDING' %}
+                        <button onclick="openPaymentModal({{ order.pk }}, '{{ order.order_number }}', this)" class="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition">
+                            <span class="material-icons">check_circle</span> Confirm Cash
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% if order.notes %}
+                    <div class="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                        <strong>Note:</strong> {{ order.notes }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <div class="p-8 text-center text-gray-500">
+                    <span class="text-4xl mb-2 block"><span class="material-icons">check_circle</span></span>
+                    <p class="text-sm">No pending payments</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- In Progress Orders (Being Prepared) -->
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-fjc-blue-50 to-fjc-blue-100">
+                <h3 class="text-lg font-semibold text-gray-900"><span class="material-icons">local_fire_department</span> In Progress</h3>
+                <p class="text-sm text-gray-600 mt-1">Being prepared</p>
+            </div>
+            <div class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                {% for order in in_progress_orders %}
+                <div class="p-4 hover:bg-gray-50 transition">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="font-semibold text-gray-900">{{ order.order_number }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ order.customer_name }} - Table {{ order.table_number }}</p>
+                        </div>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Cooking
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-2">
+                        {% for item in order.items.all %}
+                        <div>{{ item.quantity }}x {{ item.product.name }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <p class="text-sm text-fjc-blue-600 font-bold">₱{{ order.total_amount }}</p>
+                        <button onclick="updateOrderStatus({{ order.pk }}, 'FINISHED', this)" class="text-fjc-blue-600 hover:text-fjc-blue-700 hover:bg-fjc-blue-50 text-xs font-medium px-3 py-1 rounded transition">
+                            Mark Ready →
+                        </button>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="p-8 text-center text-gray-500">
+                    <span class="material-icons text-5xl mb-2 block">restaurant</span>
+                    <p class="text-sm">No orders in progress</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Ready for Pickup (Finished) -->
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
+                <h3 class="text-lg font-semibold text-gray-900"><span class="material-icons">check_circle</span> Ready / Completed</h3>
+                <p class="text-sm text-gray-600 mt-1">Recently finished orders</p>
+            </div>
+            <div class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                {% for order in finished_orders %}
+                <div class="p-4 hover:bg-gray-50 transition">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="font-semibold text-gray-900">{{ order.order_number }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ order.customer_name }} - Table {{ order.table_number }}</p>
+                        </div>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Done
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-2">
+                        {% for item in order.items.all %}
+                        <div>{{ item.quantity }}x {{ item.product.name }}</div>
+                        {% endfor %}
+                    </div>
+                    <p class="text-sm text-green-600 font-bold">₱{{ order.total_amount }}</p>
+                </div>
+                {% empty %}
+                <div class="p-8 text-center text-gray-500">
+                    <span class="material-icons text-5xl mb-2 block">inventory_2</span>
+                    <p class="text-sm">No completed orders yet</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Information Notice -->
+    <div class="bg-blue-50 border-l-4 border-fjc-blue-500 p-4 rounded-lg">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-fjc-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-fjc-blue-800">Payment Workflow</h3>
+                <p class="mt-1 text-sm text-fjc-blue-700">
+                    <strong>Pending orders</strong> are waiting for cash payment confirmation. Click "Confirm Cash" once you receive payment from the customer.
+                    Once confirmed, the order moves to <strong>In Progress</strong> and stock is automatically deducted.
+                    Mark orders as ready when food is prepared.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Confirmation Modal -->
+<div id="paymentConfirmModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full transform transition-all">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4 rounded-t-lg">
+            <h2 class="text-xl font-bold text-white flex items-center">
+                <span class="material-icons mr-3 text-2xl">attach_money</span>
+                Confirm Cash Payment
+            </h2>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="px-6 py-6 space-y-4">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-600 mb-2"><strong>Order:</strong></p>
+                <p id="paymentModalOrderNumber" class="text-2xl font-bold text-gray-900">#12345</p>
+            </div>
+
+            <div class="space-y-2">
+                <p class="text-sm text-gray-700">
+                    <span class="block font-semibold text-gray-900 mb-1">Are you sure you want to confirm cash payment?</span>
+                    <span class="block text-gray-600 text-xs">This will mark the order as received and deduct inventory from stock.</span>
+                </p>
+            </div>
+
+            <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                <p class="text-sm text-yellow-800">
+                    <span class="material-icons">warning</span> <strong>Make sure you have received the cash payment from the customer.</strong>
+                </p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="bg-gray-50 px-6 py-4 rounded-b-lg flex gap-3 border-t border-gray-200">
+            <button id="paymentConfirmCancel" onclick="closePaymentModal()" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-100 transition">
+                Cancel
+            </button>
+            <button id="paymentConfirmButton" onclick="submitPaymentConfirmation()" class="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition">
+                <span class="material-icons">check_circle</span> Confirm Payment
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Auto-refresh for real-time updates -->
+<script>
+    // Auto-refresh every 30 seconds
+    setTimeout(() => location.reload(), 30000);
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Get CSRF token safely
+function getCsrfToken() {
+    // Try to get from HTML element first
+    const tokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (tokenElement) {
+        return tokenElement.value;
+    }
+
+    // Fallback: try to get from cookies
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Store current payment info for modal
+let currentPaymentData = null;
+let currentPaymentButton = null;
+
+function openPaymentModal(orderId, orderNumber, buttonElement) {
+    currentPaymentData = { orderId, orderNumber };
+    currentPaymentButton = buttonElement;
+
+    // Update modal with order number
+    document.getElementById('paymentModalOrderNumber').textContent = `#${orderNumber}`;
+
+    // Show modal
+    document.getElementById('paymentConfirmModal').classList.remove('hidden');
+}
+
+function closePaymentModal() {
+    document.getElementById('paymentConfirmModal').classList.add('hidden');
+    currentPaymentData = null;
+    currentPaymentButton = null;
+}
+
+async function submitPaymentConfirmation() {
+    if (!currentPaymentData) return;
+
+    const orderId = currentPaymentData.orderId;
+    const orderNumber = currentPaymentData.orderNumber;
+    const buttonElement = currentPaymentButton;
+
+    // Close modal
+    closePaymentModal();
+
+    // Disable the button to prevent double-clicks
+    const originalText = buttonElement.textContent;
+    buttonElement.disabled = true;
+    buttonElement.textContent = 'Processing...';
+    buttonElement.classList.add('opacity-50', 'cursor-not-allowed');
+
+    const url = `/orders/${orderId}/process-payment/`;
+    const csrfToken = getCsrfToken();
+
+    if (!csrfToken) {
+        Toast.error('Security error: CSRF token not found');
+        buttonElement.disabled = false;
+        buttonElement.textContent = originalText;
+        buttonElement.classList.remove('opacity-50', 'cursor-not-allowed');
+        return;
+    }
+
+    Loading.show();
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+        Loading.hide();
+
+        if (result.success) {
+            Toast.success(result.message);
+            // Reload page after a short delay to show updated status
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            Toast.error(result.message || 'Failed to process payment');
+            // Re-enable button on error
+            buttonElement.disabled = false;
+            buttonElement.textContent = originalText;
+            buttonElement.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    } catch (error) {
+        Loading.hide();
+        console.error('Payment error:', error);
+        Toast.error('Network error. Please try again.');
+        // Re-enable button on error
+        buttonElement.disabled = false;
+        buttonElement.textContent = originalText;
+        buttonElement.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+}
+
+async function updateOrderStatus(orderId, newStatus, buttonElement) {
+    // Disable button to prevent double-clicks
+    if (buttonElement) {
+        const originalText = buttonElement.textContent;
+        buttonElement.disabled = true;
+        buttonElement.textContent = 'Updating...';
+        buttonElement.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+
+    const url = `/orders/${orderId}/update-status/`;
+    const csrfToken = getCsrfToken();
+
+    if (!csrfToken) {
+        Toast.error('Security error: CSRF token not found');
+        if (buttonElement) {
+            buttonElement.disabled = false;
+            buttonElement.textContent = originalText;
+            buttonElement.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        return;
+    }
+
+    Loading.show();
+
+    try {
+        const formData = new FormData();
+        formData.append('status', newStatus);
+        formData.append('csrfmiddlewaretoken', csrfToken);
+
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        const result = await response.json();
+        Loading.hide();
+
+        if (result.success) {
+            Toast.success(result.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            Toast.error(result.message || 'Failed to update order');
+            // Re-enable button on error
+            if (buttonElement) {
+                buttonElement.disabled = false;
+                buttonElement.textContent = originalText;
+                buttonElement.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    } catch (error) {
+        Loading.hide();
+        console.error('Status update error:', error);
+        Toast.error('Network error. Please try again.');
+        // Re-enable button on error
+        if (buttonElement) {
+            buttonElement.disabled = false;
+            buttonElement.textContent = originalText;
+            buttonElement.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+}
+
+// Close modal when clicking outside of it
+document.getElementById('paymentConfirmModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closePaymentModal();
+    }
+});
+
+// Close modal with ESC key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !document.getElementById('paymentConfirmModal').classList.contains('hidden')) {
+        closePaymentModal();
+    }
+});
+</script>
+{% endblock %}

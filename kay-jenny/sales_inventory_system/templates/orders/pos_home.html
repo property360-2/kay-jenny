@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}POS - Select Products - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header with Cart Summary -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-fjc-blue-800">POS - Select Products</h1>
+            <p class="mt-1 text-sm text-gray-600">Click "Add to Cart" to add items to your order</p>
+        </div>
+        <div class="flex gap-3 items-center">
+            <a href="{% url 'orders:pos_cart' %}" class="relative inline-block">
+                <button class="px-6 py-3 bg-fjc-blue-700 text-white rounded-lg hover:bg-fjc-blue-800 font-semibold flex items-center gap-2 shadow border border-fjc-blue-800" style="background-color:#3F3522;color:#fff;">
+                    <span class="material-icons text-base">shopping_cart</span>
+                    <span>View Cart</span>
+                    {% if cart_count > 0 %}
+                    <span class="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">{{ cart_count }}</span>
+                    {% endif %}
+                </button>
+            </a>
+        </div>
+    </div>
+
+    <!-- Cart Total Display -->
+    {% if cart_count > 0 %}
+    <div class="bg-fjc-blue-50 border border-fjc-blue-200 rounded-lg p-4">
+        <div class="flex justify-between items-center">
+            <div>
+                <p class="text-sm text-fjc-blue-700 font-medium">Cart Items: {{ cart_count }}</p>
+            </div>
+            <div>
+                <p class="text-lg font-bold text-fjc-blue-900">
+                    Cart Total: ₱<span id="cart-total">{{ cart_total|floatformat:2 }}</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Products Grid -->
+    <div id="products-container" class="space-y-8">
+        {% regroup products by category as products_by_category %}
+
+        {% for category_group in products_by_category %}
+        <div>
+            <h2 class="text-2xl font-bold text-fjc-blue-800 mb-4 pb-2 border-b-2 border-fjc-blue-200">
+                {{ category_group.grouper|default:"Other" }}
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {% for product in category_group.list %}
+                <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 overflow-hidden hover:shadow-lg transition-shadow">
+                    <!-- Product Image -->
+                    <div class="h-48 bg-fjc-blue-50 overflow-hidden flex items-center justify-center">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover" loading="lazy">
+                        {% else %}
+                        <div class="text-4xl text-fjc-blue-700">🍞</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Product Info -->
+                    <div class="p-4 space-y-3">
+                        <div>
+                            <h3 class="font-semibold text-fjc-blue-800 text-lg">{{ product.name }}</h3>
+                            {% if product.description %}
+                            <p class="text-sm text-gray-600 mt-1">{{ product.description|truncatewords:10 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex justify-between items-center pt-2 border-t border-gray-200">
+                            <span class="text-2xl font-bold text-fjc-blue-700">₱{{ product.price|floatformat:2 }}</span>
+                        </div>
+
+                        <!-- Add to Cart Form -->
+                        <form class="add-to-cart-form space-y-2" data-product-id="{{ product.id }}" data-product-name="{{ product.name }}">
+                            {% csrf_token %}
+                            <div class="flex gap-2">
+                                <input type="number" name="quantity" class="quantity-input flex-1 px-3 py-2 border border-fjc-blue-200 rounded-lg text-center font-medium"
+                                       value="1" min="1" max="999">
+                                <button type="submit" class="add-btn flex-1 bg-fjc-blue-700 text-white px-4 py-2 rounded-lg hover:bg-fjc-blue-800 font-semibold transition shadow border border-fjc-blue-800" style="background-color:#3F3522;color:#fff;">
+                                    Add
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    // Add to cart AJAX functionality
+    document.querySelectorAll('.add-to-cart-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const productId = this.dataset.productId;
+            const productName = this.dataset.productName;
+            const quantity = parseInt(this.querySelector('.quantity-input').value);
+            const btn = this.querySelector('.add-btn');
+
+            // Disable button during request
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = '...';
+
+            fetch(`/orders/pos/add-to-cart/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `quantity=${quantity}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = originalText;
+
+                if (data.success) {
+                    Toast.success(data.message);
+                    updateCartDisplay(data.cart_count, data.total);
+                    this.querySelector('.quantity-input').value = '1';
+                } else {
+                    Toast.error(data.message || 'Failed to add item to cart');
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.textContent = originalText;
+                Toast.error('Error adding item to cart');
+                console.error('Error:', error);
+            });
+        });
+    });
+
+    function updateCartDisplay(count, total) {
+        let cartBtn = document.querySelector('a[href*="/pos/cart/"]');
+        if (!cartBtn) return;
+        let badge = cartBtn.querySelector('span.ml-2');
+
+        if (badge) {
+            badge.textContent = count;
+        } else if (count > 0) {
+            const newBadge = document.createElement('span');
+            newBadge.className = 'ml-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full';
+            newBadge.textContent = count;
+            cartBtn.querySelector('button').appendChild(newBadge);
+        }
+
+        const totalDisplay = document.getElementById('cart-total');
+        if (totalDisplay) {
+            totalDisplay.textContent = total.toFixed(2);
+        }
+
+        const cartSummary = document.querySelector('.bg-fjc-blue-50');
+        if (!cartSummary && count > 0) {
+            location.reload();
+        }
+    }
+</script>
+{% endblock %}

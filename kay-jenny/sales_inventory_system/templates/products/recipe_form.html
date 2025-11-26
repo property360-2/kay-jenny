@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Recipe for {{ product.name }} - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">Recipe for {{ product.name }}</h1>
+        <p class="mt-1 text-sm text-gray-500">Define which ingredients go into this product and in what quantities</p>
+    </div>
+
+    <!-- Recipe Form -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Current Recipe -->
+            {% if recipe_ingredients %}
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Recipe</h3>
+                <div class="space-y-3">
+                    {% for item in recipe_ingredients %}
+                    <div class="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-200">
+                        <div>
+                            <p class="font-medium text-gray-900">{{ item.ingredient.name }}</p>
+                            <p class="text-sm text-gray-600">Unit: {{ item.ingredient.unit }}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-lg font-semibold text-gray-900">{{ item.quantity }}</p>
+                            <p class="text-xs text-gray-500">{{ item.ingredient.unit }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                <p class="text-sm text-blue-800">No ingredients added yet</p>
+            </div>
+            {% endif %}
+
+            <!-- Add Ingredients -->
+            <div class="pt-4 border-t border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Ingredients</h3>
+
+                <!-- Ingredients List -->
+                <div id="ingredients-container" class="space-y-3">
+                    {% for item in recipe_ingredients %}
+                    <div class="ingredient-row flex gap-3 items-end">
+                        <div class="flex-1 relative">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ingredient</label>
+                            <input
+                                type="hidden"
+                                name="ingredient_id"
+                                value="{{ item.ingredient.id }}"
+                                required
+                            />
+                            <input
+                                type="text"
+                                class="ingredient-search w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500"
+                                value="{{ item.ingredient.name }}"
+                                placeholder="Search ingredient..."
+                                autocomplete="off"
+                            />
+                            <div class="ingredient-suggestions absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg hidden"></div>
+                        </div>
+                        <div class="w-32">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                            <input
+                                type="number"
+                                name="quantity"
+                                value="{{ item.quantity }}"
+                                step="0.001"
+                                min="0"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500"
+                                placeholder="0"
+                            />
+                        </div>
+                        <button type="button" onclick="removeIngredient(this)" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm">
+                            <span class="material-icons">cancel</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Empty state - add first ingredient row -->
+                    {% if not recipe_ingredients %}
+                    <div class="ingredient-row flex gap-3 items-end">
+                        <div class="flex-1 relative">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ingredient</label>
+                            <input
+                                type="hidden"
+                                name="ingredient_id"
+                                required
+                            />
+                            <input
+                                type="text"
+                                class="ingredient-search w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500"
+                                placeholder="Search ingredient..."
+                                autocomplete="off"
+                            />
+                            <div class="ingredient-suggestions absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg hidden"></div>
+                        </div>
+                        <div class="w-32">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                            <input
+                                type="number"
+                                name="quantity"
+                                step="0.001"
+                                min="0"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500"
+                                placeholder="0"
+                            />
+                        </div>
+                        <button type="button" onclick="removeIngredient(this)" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm">
+                            <span class="material-icons">cancel</span>
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Add Button -->
+                <button type="button" onclick="addIngredientRow()" class="mt-4 w-full px-4 py-2 border border-dashed border-gray-300 text-gray-700 rounded-lg hover:border-fjc-blue-500 hover:text-fjc-blue-600 font-medium">
+                    ➕ Add Another Ingredient
+                </button>
+            </div>
+
+            <!-- Instructions -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+                <div class="flex items-start">
+                    <span class="text-2xl mr-3">📋</span>
+                    <div>
+                        <h3 class="font-semibold text-blue-900 mb-2">How to use recipes</h3>
+                        <ul class="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                            <li>Add all ingredients needed to make {{ product.name }}</li>
+                            <li>Specify the exact quantity of each ingredient</li>
+                            <li>Ingredients will be deducted from stock when orders are paid</li>
+                            <li>Variance allowance is applied for portion control tolerance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex space-x-3 pt-4 border-t border-gray-200">
+                <button
+                    type="submit"
+                    class="flex-1 bg-fjc-blue-600 text-white px-6 py-3 rounded-lg hover:bg-fjc-blue-700 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-fjc-blue-500"
+                >
+                    Save Recipe
+                </button>
+                <a
+                    href="{% url 'products:edit' product.id %}"
+                    class="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 font-medium text-center shadow-sm"
+                >
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Smart unit display function - converts large quantities to appropriate units
+function formatStockWithUnit(quantity, unit) {
+    quantity = parseFloat(quantity);
+
+    // Convert grams to kilograms if >= 1000
+    if (unit === 'g' && quantity >= 1000) {
+        return (quantity / 1000).toFixed(2) + 'kg';
+    }
+
+    // Convert milliliters to liters if >= 1000
+    if (unit === 'ml' && quantity >= 1000) {
+        return (quantity / 1000).toFixed(2) + 'L';
+    }
+
+    // Return as-is for other cases
+    return quantity.toFixed(2) + unit;
+}
+
+// Debounce function for search
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Search ingredients async
+async function searchIngredients(input) {
+    const query = input.value.trim();
+    const suggestionsDiv = input.parentElement.querySelector('.ingredient-suggestions');
+    const hiddenInput = input.parentElement.querySelector('input[type="hidden"]');
+
+    if (!query || query.length < 1) {
+        suggestionsDiv.classList.add('hidden');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/products/api/search-ingredients/?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        if (data.results.length === 0) {
+            suggestionsDiv.innerHTML = '<div class="p-3 text-sm text-gray-500">No ingredients found</div>';
+            suggestionsDiv.classList.remove('hidden');
+            return;
+        }
+
+        let html = '';
+        data.results.forEach(ingredient => {
+            const formattedStock = formatStockWithUnit(ingredient.current_stock, ingredient.unit);
+            html += `
+                <div class="ingredient-suggestion p-3 hover:bg-fjc-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition"
+                     data-id="${ingredient.id}"
+                     data-name="${ingredient.name}"
+                     data-unit="${ingredient.unit}"
+                     data-stock="${ingredient.current_stock}">
+                    <div class="font-medium text-gray-900">${ingredient.name}</div>
+                    <div class="text-sm text-gray-600">Unit: ${ingredient.unit} | Stock: ${formattedStock}</div>
+                </div>
+            `;
+        });
+
+        suggestionsDiv.innerHTML = html;
+        suggestionsDiv.classList.remove('hidden');
+
+        // Add click handlers to suggestions
+        suggestionsDiv.querySelectorAll('.ingredient-suggestion').forEach(suggestion => {
+            suggestion.addEventListener('click', () => {
+                input.value = suggestion.dataset.name;
+                hiddenInput.value = suggestion.dataset.id;
+                suggestionsDiv.classList.add('hidden');
+                input.classList.remove('border-red-500');
+                input.classList.add('border-green-500');
+            });
+        });
+
+    } catch (error) {
+        console.error('Error searching ingredients:', error);
+        suggestionsDiv.innerHTML = '<div class="p-3 text-sm text-red-500">Error searching ingredients</div>';
+        suggestionsDiv.classList.remove('hidden');
+    }
+}
+
+// Add ingredient row
+function addIngredientRow() {
+    const container = document.getElementById('ingredients-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'ingredient-row flex gap-3 items-end';
+    newRow.innerHTML = `
+        <div class="flex-1 relative">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Ingredient</label>
+            <input
+                type="hidden"
+                name="ingredient_id"
+                required
+            />
+            <input
+                type="text"
+                class="ingredient-search w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500"
+                placeholder="Search ingredient..."
+                autocomplete="off"
+            />
+            <div class="ingredient-suggestions absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg hidden"></div>
+        </div>
+        <div class="w-32">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+            <input
+                type="number"
+                name="quantity"
+                step="0.001"
+                min="0"
+                required
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500"
+                placeholder="0"
+            />
+        </div>
+        <button type="button" onclick="removeIngredient(this)" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm">
+            <span class="material-icons">cancel</span>
+        </button>
+    `;
+    container.appendChild(newRow);
+
+    // Add event listener to new search input
+    const searchInput = newRow.querySelector('.ingredient-search');
+    searchInput.addEventListener('input', debounce(() => searchIngredients(searchInput), 300));
+    searchInput.addEventListener('focus', () => {
+        if (searchInput.value.trim().length > 0) {
+            searchIngredients(searchInput);
+        }
+    });
+}
+
+function removeIngredient(button) {
+    button.closest('.ingredient-row').remove();
+}
+
+// Initialize search on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInputs = document.querySelectorAll('.ingredient-search');
+    searchInputs.forEach(input => {
+        input.addEventListener('input', debounce(() => searchIngredients(input), 300));
+        input.addEventListener('focus', () => {
+            if (input.value.trim().length > 0) {
+                searchIngredients(input);
+            }
+        });
+
+        // Hide suggestions when clicking outside
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                input.parentElement.querySelector('.ingredient-suggestions').classList.add('hidden');
+            }, 200);
+        });
+    });
+});
+</script>
+{% endblock %}

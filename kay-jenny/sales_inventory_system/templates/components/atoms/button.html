@@ -1,0 +1,56 @@
+{# Reusable Button Component #}
+{# Usage: {% include 'components/atoms/button.html' with type='primary' text='Save' href='#' icon='save' %} #}
+
+{% if href %}
+<a href="{{ href }}"
+   class="inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium text-sm btn-hover focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed
+   {% if type == 'primary' %}
+   bg-fjc-blue-600 text-white hover:bg-fjc-blue-700 focus:ring-fjc-blue-500
+   {% elif type == 'secondary' %}
+   bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-500
+   {% elif type == 'success' %}
+   bg-green-600 text-white hover:bg-green-700 focus:ring-green-500
+   {% elif type == 'warning' %}
+   bg-fjc-yellow-500 text-white hover:bg-fjc-yellow-600 focus:ring-fjc-yellow-500
+   {% elif type == 'danger' %}
+   bg-red-600 text-white hover:bg-red-700 focus:ring-red-500
+   {% elif type == 'outline' %}
+   bg-white border-2 border-fjc-blue-600 text-fjc-blue-600 hover:bg-fjc-blue-50 focus:ring-fjc-blue-500
+   {% else %}
+   bg-fjc-blue-600 text-white hover:bg-fjc-blue-700 focus:ring-fjc-blue-500
+   {% endif %}
+   {{ class }}"
+   {% if attrs %}{{ attrs|safe }}{% endif %}>
+    {% if icon %}
+    <svg class="w-4 h-4 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <use href="#icon-{{ icon }}"></use>
+    </svg>
+    {% endif %}
+    {{ text }}
+</a>
+{% else %}
+<button type="{{ submit_type|default:'button' }}"
+        class="inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium text-sm btn-hover focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed
+        {% if type == 'primary' %}
+        bg-fjc-blue-600 text-white hover:bg-fjc-blue-700 focus:ring-fjc-blue-500
+        {% elif type == 'secondary' %}
+        bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-500
+        {% elif type == 'success' %}
+        bg-green-600 text-white hover:bg-green-700 focus:ring-green-500
+        {% elif type == 'warning' %}
+        bg-fjc-yellow-500 text-white hover:bg-fjc-yellow-600 focus:ring-fjc-yellow-500
+        {% elif type == 'danger' %}
+        bg-red-600 text-white hover:bg-red-700 focus:ring-red-500
+        {% elif type == 'outline' %}
+        bg-white border-2 border-fjc-blue-600 text-fjc-blue-600 hover:bg-fjc-blue-50 focus:ring-fjc-blue-500
+        {% else %}
+        bg-fjc-blue-600 text-white hover:bg-fjc-blue-700 focus:ring-fjc-blue-500
+        {% endif %}
+        {{ class }}"
+        {% if attrs %}{{ attrs|safe }}{% endif %}>
+    {% if icon %}
+    <span class="mr-2">{{ icon }}</span>
+    {% endif %}
+    {{ text }}
+</button>
+{% endif %}

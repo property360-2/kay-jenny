@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}BOM Dashboard - Cafe Cantina{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Bill of Materials Dashboard</h1>
+            <p class="mt-1 text-sm text-gray-500">Inventory and ingredient management overview</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'products:bom_low_stock' %}" class="px-4 py-2 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium text-sm">
+                View All Low Stock
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Action Links - Top Navigation -->
+    <div class="bg-gradient-to-r from-fjc-yellow-50 to-fjc-blue-50 rounded-xl shadow-md border border-fjc-blue-200 p-6">
+        <h2 class="text-lg font-bold text-fjc-blue-800 mb-4 flex items-center gap-2"><span class="material-icons text-fjc-blue-700">flash_on</span> Quick Actions</h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <a href="{% url 'products:bom_usage_report' %}" class="group block p-4 bg-white rounded-lg border-2 border-fjc-blue-200 hover:border-fjc-blue-400 hover:shadow-md transition text-center">
+                <span class="material-icons text-4xl block mb-2 group-hover:scale-110 transition-transform text-fjc-blue-700">bar_chart</span>
+                <span class="text-sm font-semibold text-fjc-blue-800">Usage Reports</span>
+                <p class="text-xs text-gray-500 mt-1">View consumption</p>
+            </a>
+            <a href="{% url 'products:bom_low_stock' %}" class="group block p-4 bg-white rounded-lg border-2 border-fjc-blue-200 hover:border-fjc-blue-400 hover:shadow-md transition text-center">
+                <span class="material-icons text-4xl block mb-2 group-hover:scale-110 transition-transform text-fjc-blue-700">warning</span>
+                <span class="text-sm font-semibold text-fjc-blue-800">Low Stock Report</span>
+                <p class="text-xs text-gray-500 mt-1">Restock items</p>
+            </a>
+            <a href="{% url 'products:ingredient_list' %}" class="group block p-4 bg-white rounded-lg border-2 border-fjc-blue-200 hover:border-fjc-blue-400 hover:shadow-md transition text-center">
+                <span class="material-icons text-4xl block mb-2 group-hover:scale-110 transition-transform text-fjc-blue-700">inventory_2</span>
+                <span class="text-sm font-semibold text-fjc-blue-800">Manage Ingredients</span>
+                <p class="text-xs text-gray-500 mt-1">Add/edit ingredients</p>
+            </a>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Total Ingredients -->
+        <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Total Ingredients</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">{{ total_ingredients }}</p>
+                </div>
+                <span class="material-icons text-4xl text-fjc-blue-700">inventory_2</span>
+            </div>
+        </div>
+
+        <!-- Low Stock Count -->
+        <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Low Stock Items</p>
+                    <p class="text-3xl font-bold text-fjc-blue-700 mt-2">{{ low_stock_count }}</p>
+                </div>
+                <span class="material-icons text-4xl text-fjc-blue-700">warning</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Stock Alert -->
+    {% if low_stock_count > 0 %}
+    <div class="bg-fjc-yellow-50 border-l-4 border-fjc-blue-300 p-4 rounded-lg">
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                <span class="text-2xl text-fjc-blue-700"><span class="material-icons">warning</span></span>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-fjc-blue-800">
+                    {{ low_stock_count }} ingredient{{ low_stock_count|pluralize }} running low on stock! Please reorder soon.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Low Stock Ingredients -->
+        <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200">
+            <div class="px-6 py-4 border-b border-fjc-blue-200 bg-fjc-yellow-50">
+                <h2 class="text-xl font-semibold text-fjc-blue-800">Low Stock Ingredients</h2>
+                <p class="text-sm text-gray-600 mt-1">Ingredients below minimum stock level</p>
+            </div>
+            <div class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                {% if low_stock_ingredients %}
+                    {% for ingredient in low_stock_ingredients %}
+                    <div class="px-6 py-4 hover:bg-fjc-yellow-50 transition">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 class="font-semibold text-fjc-blue-800">{{ ingredient.name }}</h3>
+                                <p class="text-sm text-gray-600 mt-1">Min: {{ ingredient.min_stock }} {{ ingredient.unit }}</p>
+                            </div>
+                            <span class="inline-block bg-fjc-blue-100 text-fjc-blue-800 text-xs font-semibold px-2 py-1 rounded">
+                                {{ ingredient.current_stock }} {{ ingredient.unit }}
+                            </span>
+                        </div>
+                        <div class="w-full bg-fjc-blue-50 rounded-full h-2 mt-2">
+                            <div class="bg-fjc-blue-600 h-2 rounded-full" style="width: {% if ingredient.min_stock > 0 %}{{ ingredient.current_stock|floatformat:0 }}%{% else %}0%{% endif %}"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="px-6 py-8 text-center">
+                    <span class="material-icons text-4xl mb-2 block text-fjc-blue-700">check_circle</span>
+                    <p class="text-fjc-blue-800 font-medium">All ingredients are well stocked!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Low Stock Products -->
+        <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200">
+            <div class="px-6 py-4 border-b border-fjc-blue-200 bg-fjc-yellow-50">
+                <h2 class="text-xl font-semibold text-fjc-blue-800">Low Stock Products</h2>
+                <p class="text-sm text-gray-600 mt-1">Products below minimum stock level</p>
+            </div>
+            <div class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                {% if low_stock_products %}
+                    {% for product in low_stock_products %}
+                    <div class="px-6 py-4 hover:bg-fjc-yellow-50 transition">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 class="font-semibold text-fjc-blue-800">{{ product.name }}</h3>
+                                <p class="text-sm text-gray-600 mt-1">Min: {{ product.threshold }} units</p>
+                            </div>
+                            <span class="inline-block bg-fjc-blue-100 text-fjc-blue-800 text-xs font-semibold px-2 py-1 rounded">
+                                {{ product.calculated_stock }} units
+                            </span>
+                        </div>
+                        <div class="w-full bg-fjc-blue-50 rounded-full h-2 mt-2">
+                            <div class="bg-fjc-blue-600 h-2 rounded-full" style="width: {% if product.threshold > 0 %}{{ product.calculated_stock|floatformat:0 }}%{% else %}0%{% endif %}"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="px-6 py-8 text-center">
+                    <span class="text-4xl mb-2 block text-fjc-blue-700"><span class="material-icons">check_circle</span></span>
+                    <p class="text-fjc-blue-800 font-medium">All products are well stocked!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Recent Transactions -->
+        <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200">
+            <div class="px-6 py-4 border-b border-fjc-blue-200 bg-fjc-yellow-50">
+                <h2 class="text-xl font-semibold text-fjc-blue-800">Recent Transactions (7 days)</h2>
+                <p class="text-sm text-gray-600 mt-1">Latest ingredient stock movements</p>
+            </div>
+            <div class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                {% if recent_transactions %}
+                    {% for transaction in recent_transactions %}
+                    <div class="px-6 py-4 hover:bg-fjc-yellow-50 transition">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 class="font-semibold text-fjc-blue-800">{{ transaction.ingredient.name }}</h3>
+                                <p class="text-xs text-gray-600 mt-1">{{ transaction.created_at|date:"M d, Y H:i" }}</p>
+                            </div>
+                            <span class="inline-block px-2 py-1 rounded text-xs font-semibold {% if transaction.transaction_type == 'DEDUCTION' %}bg-fjc-blue-100 text-fjc-blue-800{% elif transaction.transaction_type == 'PURCHASE' %}bg-fjc-yellow-100 text-fjc-blue-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ transaction.get_transaction_type_display }}
+                            </span>
+                        </div>
+                        <div class="text-sm text-gray-700">
+                            <p><strong>Qty:</strong> {{ transaction.quantity }} {{ transaction.ingredient.unit }}</p>
+                            {% if transaction.notes %}
+                            <p class="text-xs text-gray-600 mt-1">{{ transaction.notes }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="px-6 py-8 text-center">
+                    <span class="text-4xl mb-2 block">📭</span>
+                    <p class="text-gray-600 font-medium">No transactions this week</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

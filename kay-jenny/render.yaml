@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: fjc-pizza-app
+    runtime: python
+    runtimeVersion: "3.13"
+    buildCommand: |
+      pip install -r requirements.txt
+      python sales_inventory_system/manage.py migrate
+      python sales_inventory_system/manage.py collectstatic --no-input
+    startCommand: |
+      gunicorn sales_inventory_system.sales_inventory.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      # Development/Production control
+      - key: DEBUG
+        value: "False"
+
+      # Django security - MUST be set in Render dashboard (sync: false means Render won't overwrite it)
+      - key: SECRET_KEY
+        sync: false
+
+      # Database URL - MUST be set in Render dashboard
+      - key: DATABASE_URL
+        sync: false
+
+      # Python output buffering - needed for real-time logs
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
+      # Note: ALLOWED_HOSTS and RENDER_EXTERNAL_URL are automatically detected
+      # by Django settings.py from Render environment variables
+    autoDeploy: true
+    healthCheckPath: /admin/
+    plan: free
