@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.db.models import F, Q, Prefetch
 from django.core.paginator import Paginator
 from .models import Product, Ingredient, RecipeItem, RecipeIngredient
-from sales_inventory_system.system.models import AuditTrail
+
 import json
 from decimal import Decimal
 
@@ -234,17 +234,8 @@ def product_create(request):
                             # Skip invalid ingredients
                             continue
 
-                # Create audit log
                 product_type = 'Manufactured (with BOM)' if requires_bom else 'Simple stock item'
-                AuditTrail.objects.create(
-                    user=request.user,
-                    action='CREATE',
-                    model_name='Product',
-                    record_id=product.id,
-                    description=f'Created {product_type}: {product.name}',
-                    data_snapshot={
-                        'name': name,
-                        'price': str(price),
+,
                         'stock': stock,
                         'requires_bom': requires_bom,
                         'ingredients_count': ingredients_count
@@ -307,7 +298,6 @@ def product_edit(request, pk):
 
         product.save()
 
-        # Create audit log
         description = f'Updated product: {product.name}'
         changes = []
         if old_stock != int(product.stock):
@@ -318,16 +308,7 @@ def product_edit(request, pk):
 
         if changes:
             description += f' ({", ".join(changes)})'
-
-        AuditTrail.objects.create(
-            user=request.user,
-            action='UPDATE',
-            model_name='Product',
-            record_id=product.id,
-            description=description,
-            data_snapshot={
-                'name': product.name,
-                'price': str(product.price),
+,
                 'stock': product.stock,
                 'requires_bom': product.requires_bom,
                 'old_stock': old_stock,
@@ -349,19 +330,11 @@ def product_archive(request, pk):
     product.is_archived = True
     product.save()
 
-    # Create audit log
-    AuditTrail.objects.create(
-        user=request.user,
-        action='ARCHIVE',
-        model_name='Product',
-        record_id=product.id,
-        description=f'Archived product: {product.name}',
-        data_snapshot={'name': product.name, 'price': str(product.price)}
+}
     )
 
     messages.success(request, f'Product "{product.name}" archived successfully!')
     return redirect('products:list')
-
 
 @login_required
 @user_passes_test(is_admin)
@@ -477,7 +450,6 @@ def archived_products_list(request):
     }
     return render(request, 'products/archived_list.html', context)
 
-
 @login_required
 @user_passes_test(is_admin)
 def product_unarchive(request, pk):
@@ -486,19 +458,11 @@ def product_unarchive(request, pk):
     product.is_archived = False
     product.save()
 
-    # Create audit log
-    AuditTrail.objects.create(
-        user=request.user,
-        action='RESTORE',
-        model_name='Product',
-        record_id=product.id,
-        description=f'Restored product: {product.name}',
-        data_snapshot={'name': product.name, 'price': str(product.price)}
+}
     )
 
     messages.success(request, f'Product "{product.name}" restored successfully!')
     return redirect('products:archived_list')
-
 
 # ==================== Ingredient Management Views ====================
 
@@ -543,7 +507,6 @@ def ingredient_list(request):
     }
     return render(request, 'products/ingredient_list.html', context)
 
-
 @login_required
 @user_passes_test(is_admin)
 def ingredient_create(request):
@@ -582,7 +545,6 @@ def ingredient_create(request):
     }
     return render(request, 'products/ingredient_form.html', context)
 
-
 @login_required
 @user_passes_test(is_admin)
 def ingredient_edit(request, pk):
@@ -613,7 +575,6 @@ def ingredient_edit(request, pk):
     }
     return render(request, 'products/ingredient_form.html', context)
 
-
 @login_required
 @user_passes_test(is_admin)
 def ingredient_delete(request, pk):
@@ -624,7 +585,6 @@ def ingredient_delete(request, pk):
 
     messages.success(request, f'Ingredient "{name}" deleted successfully!')
     return redirect('products:ingredient_list')
-
 
 # ==================== Recipe/BOM Management Views ====================
 
@@ -681,7 +641,6 @@ def recipe_edit(request, pk):
     }
     return render(request, 'products/recipe_form.html', context)
 
-
 @login_required
 @user_passes_test(is_admin)
 def api_list_ingredients(request):
@@ -699,7 +658,6 @@ def api_list_ingredients(request):
         })
 
     return JsonResponse(results, safe=False)
-
 
 @login_required
 @user_passes_test(is_admin)
@@ -771,7 +729,6 @@ def api_create_ingredient(request):
             'message': f'Error creating ingredient: {str(e)}'
         })
 
-
 @login_required
 @user_passes_test(is_admin)
 def api_search_ingredients(request):
@@ -803,7 +760,6 @@ def api_search_ingredients(request):
 
     return JsonResponse({'results': results})
 
-
 @login_required
 @user_passes_test(is_admin)
 def api_list_categories(request):
@@ -816,7 +772,6 @@ def api_list_categories(request):
 
     results = [{'name': cat} for cat in all_categories]
     return JsonResponse(results, safe=False)
-
 
 @login_required
 @user_passes_test(is_admin)
@@ -850,7 +805,6 @@ def api_create_category(request):
             'message': f'Error creating category: {str(e)}'
         })
 
-
 @login_required
 @user_passes_test(is_admin)
 def api_search_categories(request):
@@ -874,7 +828,6 @@ def api_search_categories(request):
 
     results = [{'name': cat} for cat in matching_categories]
     return JsonResponse({'results': results})
-
 
 @login_required
 @user_passes_test(is_admin)

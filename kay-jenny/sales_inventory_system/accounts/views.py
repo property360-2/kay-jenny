@@ -7,7 +7,6 @@ from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.db.models import Q
 from .models import User
-from sales_inventory_system.system.models import AuditTrail
 
 def login_view(request):
     """Handle user login"""
@@ -39,7 +38,6 @@ def login_view(request):
 
     return render(request, 'accounts/login.html')
 
-
 @login_required
 def logout_view(request):
     """Handle user logout"""
@@ -47,11 +45,9 @@ def logout_view(request):
     messages.success(request, 'You have been logged out successfully.')
     return redirect('accounts:login')
 
-
 def is_admin(user):
     """Check if user is admin"""
     return user.is_authenticated and user.is_admin
-
 
 @login_required
 @user_passes_test(is_admin)
@@ -135,7 +131,6 @@ def user_list(request):
     }
     return render(request, 'accounts/user_list.html', context)
 
-
 @login_required
 @user_passes_test(is_admin)
 def user_create(request):
@@ -174,7 +169,6 @@ def user_create(request):
     # Explicitly pass user=None so the template does not use request.user defaults
     return render(request, 'accounts/user_form.html', {'action': 'Create', 'user': None})
 
-
 @login_required
 @user_passes_test(is_admin)
 def user_edit(request, pk):
@@ -210,7 +204,6 @@ def user_edit(request, pk):
 
     return render(request, 'accounts/user_form.html', {'user': user, 'action': 'Edit'})
 
-
 @login_required
 @user_passes_test(is_admin)
 def user_archive(request, pk):
@@ -234,7 +227,6 @@ def user_archive(request, pk):
     messages.success(request, f'User {user.username} {action} successfully!')
     return redirect('accounts:user_list')
 
-
 @login_required
 @user_passes_test(is_admin)
 def user_audit_trail(request, pk):
@@ -256,7 +248,6 @@ def user_audit_trail(request, pk):
     }
     return render(request, 'accounts/user_audit_trail.html', context)
 
-
 @login_required
 @user_passes_test(is_admin)
 def user_archive(request, pk):
@@ -271,19 +262,11 @@ def user_archive(request, pk):
     user.is_archived = True
     user.save()
 
-    # Create audit log
-    AuditTrail.objects.create(
-        user=request.user,
-        action='ARCHIVE',
-        model_name='User',
-        record_id=user.id,
-        description=f'Archived user: {user.username}',
-        data_snapshot={'username': user.username, 'email': user.email, 'role': user.get_role_display()}
+}
     )
 
     messages.success(request, f'User "{user.username}" archived successfully!')
     return redirect('accounts:user_list')
-
 
 @login_required
 @user_passes_test(is_admin)
@@ -294,14 +277,7 @@ def user_unarchive(request, pk):
     user.is_archived = False
     user.save()
 
-    # Create audit log
-    AuditTrail.objects.create(
-        user=request.user,
-        action='RESTORE',
-        model_name='User',
-        record_id=user.id,
-        description=f'Restored user: {user.username}',
-        data_snapshot={'username': user.username, 'email': user.email, 'role': user.get_role_display()}
+}
     )
 
     messages.success(request, f'User "{user.username}" restored successfully!')

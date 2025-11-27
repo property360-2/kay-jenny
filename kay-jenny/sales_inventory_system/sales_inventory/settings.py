@@ -77,7 +77,6 @@ INSTALLED_APPS = [
     "sales_inventory_system.products",
     "sales_inventory_system.orders",
     "sales_inventory_system.analytics",
-    "sales_inventory_system.system",
 ]
 
 MIDDLEWARE = [
@@ -104,6 +103,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.media",
+                "sales_inventory_system.products.context_processors.low_stock_notifications",
             ],
         },
     },

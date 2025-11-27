@@ -3,6 +3,7 @@
 {% block title %}Cart - Cafe Cantina POS{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="space-y-6">
     <!-- Header -->
     <div class="flex justify-between items-center">
@@ -136,10 +137,12 @@
     });
 
     function updateQuantity(productId, newQty, qtyInput, qtyDisplay, subtotalDisplay) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+
         fetch(`/orders/pos/update-cart/${productId}/`, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-CSRFToken': csrfToken,
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: `quantity=${newQty}`
@@ -157,8 +160,10 @@
             }
         })
         .catch(error => {
-            Toast.error('Error updating quantity');
-            console.error('Error:', error);
+            console.error('Error updating quantity:', error);
+            Toast.error('Network error. Please try again.');
+            // Reload page after a short delay to ensure cart is in sync
+            setTimeout(() => location.reload(), 1500);
         });
     }
 

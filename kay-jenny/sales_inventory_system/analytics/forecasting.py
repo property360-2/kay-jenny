@@ -29,7 +29,7 @@ def prepare_sales_data(days=30):
     # Get daily revenue data - optimized to single database query
     # Instead of querying per date, use TruncDate to group all in one query
     daily_data = Payment.objects.filter(
-        status='SUCCESS',
+        status='COMPLETED',
         created_at__date__gte=start_date
     ).annotate(
         date=TruncDate('created_at')

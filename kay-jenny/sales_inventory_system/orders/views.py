@@ -9,8 +9,6 @@ from django.utils import timezone
 from datetime import timedelta
 from .models import Order, OrderItem, Payment
 from sales_inventory_system.products.models import Product
-from sales_inventory_system.system.models import AuditTrail
-
 
 @login_required
 def order_list(request):
@@ -115,7 +113,6 @@ def order_list(request):
     }
     return render(request, 'orders/list.html', context)
 
-
 @login_required
 def order_detail(request, pk):
     """Display details of a specific order"""
@@ -129,7 +126,6 @@ def order_detail(request, pk):
         'items': order.items.all(),
     }
     return render(request, 'orders/detail.html', context)
-
 
 @login_required
 def update_order_status(request, pk):
@@ -160,21 +156,7 @@ def update_order_status(request, pk):
             order.processed_by = request.user
             order.save()
 
-            # Create audit log
-            AuditTrail.objects.create(
-                user=request.user,
-                action='UPDATE',
-                model_name='Order',
-                record_id=order.id,
-                description=f'Updated order {order.order_number} status from {old_status} to {new_status}',
-                data_snapshot={
-                    'order_number': order.order_number,
-                    'old_status': old_status,
-                    'new_status': new_status
-                }
-            )
-
-            messages.success(request, f'Order {order.order_number} status updated to {order.get_status_display()}')
+messages.success(request, f'Order {order.order_number} status updated to {order.get_status_display()}')
 
             return JsonResponse({
                 'success': True,
@@ -189,7 +171,6 @@ def update_order_status(request, pk):
             })
 
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
-
 
 @login_required
 def process_payment(request, pk):
@@ -218,7 +199,7 @@ def process_payment(request, pk):
 
             with transaction.atomic():
                 # Update payment status
-                payment.status = 'SUCCESS'
+                payment.status = 'COMPLETED'
                 payment.processed_by = request.user
                 payment.save()
 
@@ -233,13 +214,7 @@ def process_payment(request, pk):
                 except IngredientDeductionError as e:
                     raise ValueError(f'Ingredient deduction failed: {str(e)}')
 
-                # Create audit log for payment
-                AuditTrail.objects.create(
-                    user=request.user,
-                    action='UPDATE',
-                    model_name='Payment',
-                    record_id=payment.id,
-                    description=f'Payment confirmed for order {order.order_number} (₱{payment.amount})',
+',
                     data_snapshot={
                         'order_number': order.order_number,
                         'amount': str(payment.amount),
@@ -269,7 +244,6 @@ def process_payment(request, pk):
             })
 
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
-
 
 @login_required
 def quick_payment(request, pk):
@@ -312,7 +286,7 @@ def quick_payment(request, pk):
 
         with transaction.atomic():
             # Update payment status
-            payment.status = 'SUCCESS'
+            payment.status = 'COMPLETED'
             payment.processed_by = request.user
             payment.save()
 
@@ -327,14 +301,8 @@ def quick_payment(request, pk):
             except IngredientDeductionError as e:
                 raise ValueError(f'Ingredient deduction failed: {str(e)}')
 
-            # Create audit log for payment
             change = cash_amount - float(order.total_amount)
-            AuditTrail.objects.create(
-                user=request.user,
-                action='UPDATE',
-                model_name='Payment',
-                record_id=payment.id,
-                description=f'Quick payment processed for order {order.order_number} (₱{payment.amount}, Change: ₱{change:.2f})',
+',
                 data_snapshot={
                     'order_number': order.order_number,
                     'amount': str(payment.amount),
@@ -356,7 +324,6 @@ def quick_payment(request, pk):
         return JsonResponse({'success': False, 'message': str(e)})
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Error processing payment: {str(e)}'})
-
 
 # ==================== NEW POS VIEWS (Optimized with Session-based Cart) ====================
 
@@ -383,7 +350,6 @@ def pos_home(request):
         'cart_count': len(request.session.get('pos_cart', {})),
     }
     return render(request, 'orders/pos_home.html', context)
-
 
 @login_required
 def pos_add_to_cart(request, product_id):
@@ -434,7 +400,6 @@ def pos_add_to_cart(request, product_id):
         'total': float(total),
     })
 
-
 @login_required
 def pos_remove_from_cart(request, product_id):
     """AJAX endpoint to remove product from cart"""
@@ -458,7 +423,6 @@ def pos_remove_from_cart(request, product_id):
         })
 
     return JsonResponse({'success': False, 'message': 'Item not found in cart'})
-
 
 @login_required
 def pos_update_cart_quantity(request, product_id):
@@ -502,7 +466,6 @@ def pos_update_cart_quantity(request, product_id):
 
     return JsonResponse({'success': False, 'message': 'Item not found in cart'})
 
-
 @login_required
 def pos_get_cart(request):
     """AJAX endpoint to get cart as JSON"""
@@ -510,7 +473,6 @@ def pos_get_cart(request):
     # Return simplified cart data (product_id: quantity)
     simplified_cart = {product_id: item['quantity'] for product_id, item in cart.items()}
     return JsonResponse(simplified_cart)
-
 
 @login_required
 def pos_get_cart_details(request):
@@ -543,7 +505,6 @@ def pos_get_cart_details(request):
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
 
-
 @login_required
 def pos_cart_view(request):
     """Display POS cart"""
@@ -565,7 +526,6 @@ def pos_cart_view(request):
         'cart_count': len(cart),
     }
     return render(request, 'orders/pos_cart.html', context)
-
 
 @login_required
 def pos_checkout(request):
@@ -652,21 +612,11 @@ def pos_checkout(request):
                     order=order,
                     method=payment_method,
                     amount=total_amount,
-                    status='SUCCESS',
+                    status='COMPLETED',
                     processed_by=request.user
                 )
 
-                # Create audit log
-                AuditTrail.objects.create(
-                    user=request.user,
-                    action='CREATE',
-                    model_name='Order',
-                    record_id=order.id,
-                    description=f'POS order created: {order.order_number}',
-                    data_snapshot={
-                        'order_number': order.order_number,
-                        'customer_name': customer_name,
-                        'total_amount': str(order.total_amount),
+,
                         'payment_method': payment_method
                     }
                 )
@@ -693,7 +643,6 @@ def pos_checkout(request):
     }
     return render(request, 'orders/pos_checkout.html', context)
 
-
 @login_required
 def pos_confirmation(request, order_number):
     """Order confirmation page"""
@@ -704,7 +653,6 @@ def pos_confirmation(request, order_number):
         'order_items': order.items.all(),
     }
     return render(request, 'orders/pos_confirmation.html', context)
-
 
 # ==================== OLD POS VIEW (Deprecated - keeping for reference) ====================
 
@@ -767,7 +715,6 @@ def pos_create_order(request):
                 }
 
                 order_items = []
-                audit_trails = []
 
                 # Create order items and calculate total
                 for item_data in cart_items:
@@ -792,26 +739,8 @@ def pos_create_order(request):
 
                 try:
                     deduction_result = BOMService.deduct_ingredients_for_order(order, request.user)
-
-                    # Create audit log for ingredient deductions
-                    audit_trails.append(AuditTrail(
-                        user=request.user,
-                        action='UPDATE',
-                        model_name='Order',
-                        record_id=order.id,
-                        description=f'Ingredients deducted for POS order {order.order_number}',
-                        data_snapshot={
-                            'order_number': order.order_number,
-                            'ingredients_deducted': len(deduction_result['deductions']),
-                            'total_ingredient_cost': float(deduction_result['total_cost'])
-                        }
-                    ))
                 except IngredientDeductionError as e:
                     raise ValueError(f'Failed to deduct ingredients: {str(e)}')
-
-                # Bulk create audit trails
-                if audit_trails:
-                    AuditTrail.objects.bulk_create(audit_trails, batch_size=100)
 
                 # Update order total
                 order.calculate_total()
@@ -821,23 +750,8 @@ def pos_create_order(request):
                     order=order,
                     method=payment_method,
                     amount=order.total_amount,
-                    status='SUCCESS',
+                    status='COMPLETED',
                     processed_by=request.user
-                )
-
-                # Create audit log for order creation
-                AuditTrail.objects.create(
-                    user=request.user,
-                    action='CREATE',
-                    model_name='Order',
-                    record_id=order.id,
-                    description=f'POS order created: {order.order_number}',
-                    data_snapshot={
-                        'order_number': order.order_number,
-                        'customer_name': customer_name,
-                        'total_amount': str(order.total_amount),
-                        'payment_method': payment_method
-                    }
                 )
 
                 messages.success(request, f'Order {order.order_number} created successfully!')
@@ -865,7 +779,6 @@ def pos_create_order(request):
     }
     return render(request, 'orders/pos_create.html', context)
 
-
 @login_required
 def order_archive(request, pk):
     """Archive an order (admin only)"""
@@ -883,20 +796,11 @@ def order_archive(request, pk):
     order.is_archived = True
     order.save()
 
-    # Create audit log
-    from sales_inventory_system.system.models import AuditTrail
-    AuditTrail.objects.create(
-        user=request.user,
-        action='ARCHIVE',
-        model_name='Order',
-        record_id=order.id,
-        description=f'Archived order: {order.order_number}',
-        data_snapshot={'order_number': order.order_number, 'customer_name': order.customer_name, 'status': order.get_status_display()}
+}
     )
 
     messages.success(request, f'Order "{order.order_number}" archived successfully!')
     return redirect('orders:list')
-
 
 @login_required
 def order_unarchive(request, pk):
@@ -913,15 +817,7 @@ def order_unarchive(request, pk):
     order.is_archived = False
     order.save()
 
-    # Create audit log
-    from sales_inventory_system.system.models import AuditTrail
-    AuditTrail.objects.create(
-        user=request.user,
-        action='RESTORE',
-        model_name='Order',
-        record_id=order.id,
-        description=f'Restored order: {order.order_number}',
-        data_snapshot={'order_number': order.order_number, 'customer_name': order.customer_name, 'status': order.get_status_display()}
+}
     )
 
     messages.success(request, f'Order "{order.order_number}" restored successfully!')

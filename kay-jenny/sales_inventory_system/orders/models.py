@@ -15,6 +15,7 @@ class Order(models.Model):
         ('FINISHED', 'Finished'),
         ('CANCELLED', 'Cancelled'),
         ('EXPIRED', 'Expired'),
+        ('REFUNDED', 'Refunded'),
     ]
 
     order_number = models.CharField(max_length=20, unique=True, editable=False)
@@ -116,12 +117,13 @@ class Payment(models.Model):
 
     METHOD_CHOICES = [
         ('CASH', 'Cash'),
+        ('GCASH', 'GCash'),
         ('ONLINE', 'Online Demo'),
     ]
 
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),
-        ('SUCCESS', 'Success'),
+        ('COMPLETED', 'Completed'),
         ('FAILED', 'Failed'),
     ]
 
@@ -145,3 +147,25 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment for {self.order.order_number} - {self.get_status_display()}"
+
+
+class Refund(models.Model):
+    """Refund model for tracking refunded orders"""
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='refund')
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name='refunds')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    reason = models.TextField()
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='approved_refunds'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Refund for {self.order.order_number} - ₱{self.amount}"

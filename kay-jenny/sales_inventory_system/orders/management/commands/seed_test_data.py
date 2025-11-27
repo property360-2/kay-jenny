@@ -153,7 +153,7 @@ class Command(BaseCommand):
             Payment.objects.create(
                 order=order,
                 method=pay_method,
-                status="SUCCESS" if status != "PENDING" else "PENDING",
+                status="COMPLETED" if status != "PENDING" else "PENDING",
                 amount=total,
                 processed_by=cashier if status != "PENDING" else None,
             )

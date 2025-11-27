@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py makemigrations:*)",
+      "Bash(python manage.py:*)",
+      "Bash(python remove_audit.py:*)",
+      "Bash(python:*)",
+      "Bash(Remove-Item -Recurse -Force \"C:\\Users\\Administrator\\Desktop\\projects\\kay-jenny\\kay-jenny\\sales_inventory_system\\system\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

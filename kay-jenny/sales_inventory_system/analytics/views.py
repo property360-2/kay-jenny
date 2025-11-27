@@ -31,7 +31,7 @@ def dashboard(request):
 
     # Optimize: Combine all revenue queries into single query with Case/When
     revenue_stats = Payment.objects.filter(
-        status='SUCCESS'
+        status='COMPLETED'
     ).aggregate(
         # Total revenue (all time)
         total_revenue=Coalesce(Sum('amount'), Decimal('0.00')),
@@ -215,7 +215,7 @@ def sales_data_api(request):
     if period == 'day':
         # Last 24 hours by hour - optimized with single database query
         hourly_data = Payment.objects.filter(
-            status='SUCCESS',
+            status='COMPLETED',
             created_at__gte=timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
         ).annotate(
             hour=TruncHour('created_at')
@@ -240,7 +240,7 @@ def sales_data_api(request):
         # Last 7 days - optimized with single database query
         week_start = today - timedelta(days=6)
         daily_data = Payment.objects.filter(
-            status='SUCCESS',
+            status='COMPLETED',
             created_at__date__gte=week_start
         ).annotate(
             date=TruncDate('created_at')
@@ -266,7 +266,7 @@ def sales_data_api(request):
         # Last 30 days - optimized with single database query
         month_start = today - timedelta(days=29)
         daily_data = Payment.objects.filter(
-            status='SUCCESS',
+            status='COMPLETED',
             created_at__date__gte=month_start
         ).annotate(
             date=TruncDate('created_at')
@@ -324,3 +324,72 @@ def sales_forecast(request):
     }
 
     return render(request, 'analytics/forecast.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def sales_report(request):
+    """
+    Payment drawer / Sales report with filters:
+    - Date range (from/to dates or preset ranges)
+    - Payment method (CASH, GCASH, or ALL)
+    """
+    # Parse filter parameters
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    payment_method = request.GET.get('payment_method', 'ALL')
+    days_filter = request.GET.get('days', '')  # 1, 7, 30, 90
+
+    # Build queryset - only COMPLETED payments
+    payments = Payment.objects.filter(status='COMPLETED').select_related('order')
+
+    # Apply date filters
+    if days_filter:
+        try:
+            cutoff = timezone.now() - timedelta(days=int(days_filter))
+            payments = payments.filter(created_at__gte=cutoff)
+        except ValueError:
+            pass
+    elif date_from and date_to:
+        # Custom date range
+        try:
+            payments = payments.filter(
+                created_at__date__gte=date_from,
+                created_at__date__lte=date_to
+            )
+        except Exception:
+            pass
+
+    # Apply payment method filter
+    if payment_method != 'ALL':
+        payments = payments.filter(method=payment_method)
+
+    # Calculate totals
+    total_sales = payments.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+
+    # Breakdown by payment method
+    cash_total = payments.filter(method='CASH').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+    gcash_total = payments.filter(method='GCASH').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+
+    # Transaction counts
+    transaction_count = payments.count()
+    cash_count = payments.filter(method='CASH').count()
+    gcash_count = payments.filter(method='GCASH').count()
+
+    # Get recent payments (limit for performance)
+    recent_payments = payments.order_by('-created_at')[:100]
+
+    context = {
+        'payments': recent_payments,
+        'total_sales': total_sales,
+        'cash_total': cash_total,
+        'gcash_total': gcash_total,
+        'transaction_count': transaction_count,
+        'cash_count': cash_count,
+        'gcash_count': gcash_count,
+        'date_from': date_from,
+        'date_to': date_to,
+        'payment_method': payment_method,
+        'days_filter': days_filter,
+    }
+    return render(request, 'analytics/sales_report.html', context)

@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
-from .models import Ingredient
+from .models import Ingredient, Product
 
 
 def is_cashier(user):
@@ -99,3 +99,36 @@ def api_get_ingredients(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+@user_passes_test(is_cashier)
+def cashier_inventory_overview(request):
+    """
+    Read-only inventory overview for cashiers
+    Shows products and ingredients with stock levels
+    """
+    # Get products with calculated stock (exclude archived)
+    products = Product.objects.filter(
+        is_archived=False
+    ).prefetch_related('recipe__ingredients__ingredient').order_by('name')
+
+    # Prepare products data with calculated stock and low stock flag
+    products_data = []
+    for product in products:
+        products_data.append({
+            'product': product,
+            'calculated_stock': product.calculated_stock,
+            'is_low_stock': product.calculated_stock < product.threshold,
+            'threshold': product.threshold,
+            'price': product.price,
+        })
+
+    # Get all active ingredients
+    ingredients = Ingredient.objects.filter(is_active=True).order_by('name')
+
+    context = {
+        'products_data': products_data,
+        'ingredients': ingredients,
+    }
+    return render(request, 'products/cashier_inventory.html', context)
