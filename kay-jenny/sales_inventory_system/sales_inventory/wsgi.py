@@ -6,6 +6,12 @@ It exposes the WSGI callable as a module-level variable named ``application``.
 For more information on this file, see
 https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 """
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[2]  # two levels up: points to inner kay-jenny
+sys.path.insert(0, str(BASE_DIR))
+
 
 import os
 import sys
