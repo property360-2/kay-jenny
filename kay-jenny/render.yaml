@@ -3,6 +3,7 @@ services:
     name: fjc-pizza-app
     runtime: python
     runtimeVersion: "3.13"
+    rootDir: kay-jenny
     buildCommand: |
       pip install -r requirements.txt
       python sales_inventory_system/manage.py migrate
