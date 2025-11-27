@@ -229,27 +229,6 @@ def user_archive(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
-def user_audit_trail(request, pk):
-    """View audit trail for a specific user (admin only)"""
-    user = get_object_or_404(User, pk=pk)
-
-    # Get audit logs for this user
-    audit_logs = AuditTrail.objects.filter(user=user).select_related('user').order_by('-created_at')
-
-    # Pagination
-    paginator = Paginator(audit_logs, 50)  # 50 logs per page
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
-
-    context = {
-        'user': user,
-        'audit_logs': page_obj,
-        'total_actions': paginator.count,
-    }
-    return render(request, 'accounts/user_audit_trail.html', context)
-
-@login_required
-@user_passes_test(is_admin)
 def user_archive(request, pk):
     """Archive a user/staff member"""
     user = get_object_or_404(User, pk=pk)
@@ -262,9 +241,6 @@ def user_archive(request, pk):
     user.is_archived = True
     user.save()
 
-}
-    )
-
     messages.success(request, f'User "{user.username}" archived successfully!')
     return redirect('accounts:user_list')
 
@@ -276,9 +252,6 @@ def user_unarchive(request, pk):
 
     user.is_archived = False
     user.save()
-
-}
-    )
 
     messages.success(request, f'User "{user.username}" restored successfully!')
     return redirect('accounts:archived_list')

@@ -235,12 +235,6 @@ def product_create(request):
                             continue
 
                 product_type = 'Manufactured (with BOM)' if requires_bom else 'Simple stock item'
-,
-                        'stock': stock,
-                        'requires_bom': requires_bom,
-                        'ingredients_count': ingredients_count
-                    }
-                )
 
                 success_msg = f'Product "{product.name}" created successfully!'
                 if requires_bom:
@@ -308,13 +302,6 @@ def product_edit(request, pk):
 
         if changes:
             description += f' ({", ".join(changes)})'
-,
-                'stock': product.stock,
-                'requires_bom': product.requires_bom,
-                'old_stock': old_stock,
-                'old_requires_bom': old_requires_bom
-            }
-        )
 
         messages.success(request, f'Product "{product.name}" updated successfully!')
         return redirect('products:list')
@@ -329,9 +316,6 @@ def product_archive(request, pk):
     product = get_object_or_404(Product, pk=pk)
     product.is_archived = True
     product.save()
-
-}
-    )
 
     messages.success(request, f'Product "{product.name}" archived successfully!')
     return redirect('products:list')
@@ -370,33 +354,16 @@ def archived_products_list(request):
     # Order by name
     archived_products = archived_products.order_by('name')
 
-    # Get archive info from AuditTrail
-    archive_info = {}
-    audit_records = AuditTrail.objects.filter(
-        action='ARCHIVE',
-        model_name='Product'
-    ).order_by('-created_at')
-
-    for record in audit_records:
-        if record.record_id not in archive_info:
-            archive_info[record.record_id] = {
-                'archived_by': record.user.username if record.user else 'Unknown',
-                'archived_at': record.created_at,
-            }
-
     # Pagination
     paginator = Paginator(archived_products, 12)  # 12 products per page
     page_obj = paginator.get_page(page_number)
 
-    # Attach archive info to each product
+    # Attach default archive info to each product
     for product in page_obj:
-        if product.id in archive_info:
-            product.archive_info = archive_info[product.id]
-        else:
-            product.archive_info = {
-                'archived_by': 'Unknown',
-                'archived_at': 'Unknown date'
-            }
+        product.archive_info = {
+            'archived_by': 'Unknown',
+            'archived_at': 'Unknown date'
+        }
 
     # AJAX response for async filtering
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -457,9 +424,6 @@ def product_unarchive(request, pk):
     product = get_object_or_404(Product, pk=pk, is_archived=True)
     product.is_archived = False
     product.save()
-
-}
-    )
 
     messages.success(request, f'Product "{product.name}" restored successfully!')
     return redirect('products:archived_list')

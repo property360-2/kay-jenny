@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Process Refund - Order {{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Process Refund</h1>
+            <p class="mt-1 text-sm text-gray-500">Order #{{ order.order_number }}</p>
+        </div>
+        <a href="{% url 'orders:detail' order.id %}" class="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition">
+            Cancel
+        </a>
+    </div>
+
+    <!-- Warning Alert -->
+    <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <span class="material-icons text-red-400">warning</span>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">Warning: Refund Action</h3>
+                <div class="mt-2 text-sm text-red-700">
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>This action cannot be undone</li>
+                        <li>Ingredients will NOT be returned to inventory</li>
+                        <li>Order status will be changed to REFUNDED</li>
+                        <li>Requires admin passcode to proceed</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Details -->
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-gray-900">Order Information</h2>
+
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <p class="text-gray-500">Order Number</p>
+                <p class="font-semibold text-gray-900">{{ order.order_number }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Customer</p>
+                <p class="font-semibold text-gray-900">{{ order.customer_name|default:"Walk-in" }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Order Date</p>
+                <p class="font-semibold text-gray-900">{{ order.created_at|date:"M d, Y h:i A" }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Current Status</p>
+                <p class="font-semibold">
+                    <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                        {% if order.status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                        {% elif order.status == 'IN_PROGRESS' %}bg-blue-100 text-blue-800
+                        {% elif order.status == 'FINISHED' %}bg-green-100 text-green-800
+                        {% elif order.status == 'CANCELLED' %}bg-red-100 text-red-800
+                        {% endif %}">
+                        {{ order.get_status_display }}
+                    </span>
+                </p>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+                <p class="text-gray-700 font-medium">Payment Amount</p>
+                <p class="text-2xl font-bold text-gray-900">₱{{ payment.amount|floatformat:2 }}</p>
+            </div>
+            <div class="flex justify-between items-center mt-2">
+                <p class="text-gray-500 text-sm">Payment Method</p>
+                <p class="text-sm font-semibold">
+                    {% if payment.method == 'CASH' %}
+                        💵 Cash
+                    {% elif payment.method == 'GCASH' %}
+                        📱 GCash
+                    {% else %}
+                        {{ payment.get_method_display }}
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refund Form -->
+    <form method="post" class="bg-white rounded-lg shadow-md border border-gray-200 p-6 space-y-6">
+        {% csrf_token %}
+
+        <div>
+            <label for="reason" class="block text-sm font-medium text-gray-700 mb-2">
+                Refund Reason <span class="text-red-500">*</span>
+            </label>
+            <textarea id="reason" name="reason" rows="4" required
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition"
+                      placeholder="Enter the reason for this refund..."></textarea>
+            <p class="mt-1 text-sm text-gray-500">Provide a detailed reason for auditing purposes</p>
+        </div>
+
+        <div>
+            <label for="passcode" class="block text-sm font-medium text-gray-700 mb-2">
+                Admin Passcode <span class="text-red-500">*</span>
+            </label>
+            <input type="password" id="passcode" name="passcode" required
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition"
+                   placeholder="Enter admin passcode">
+            <p class="mt-1 text-sm text-gray-500">Required to authorize this refund</p>
+        </div>
+
+        <div class="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200">
+            <a href="{% url 'orders:detail' order.id %}"
+               class="px-6 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition">
+                Cancel
+            </a>
+            <button type="submit"
+                    class="px-6 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg font-medium transition">
+                Process Refund
+            </button>
+        </div>
+    </form>
+
+    <!-- Info Box -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <span class="material-icons text-blue-400">info</span>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">Important Notes</h3>
+                <div class="mt-2 text-sm text-blue-700 space-y-1">
+                    <p>• The refund will be processed immediately upon confirmation</p>
+                    <p>• Customer should receive ₱{{ payment.amount|floatformat:2 }} refund</p>
+                    <p>• This transaction will appear in reports as a refunded order</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

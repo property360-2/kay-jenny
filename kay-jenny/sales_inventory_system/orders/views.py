@@ -7,7 +7,8 @@ from django.db.models import Q
 from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import timedelta
-from .models import Order, OrderItem, Payment
+from decimal import Decimal
+from .models import Order, OrderItem, Payment, Refund
 from sales_inventory_system.products.models import Product
 
 @login_required
@@ -156,7 +157,7 @@ def update_order_status(request, pk):
             order.processed_by = request.user
             order.save()
 
-messages.success(request, f'Order {order.order_number} status updated to {order.get_status_display()}')
+            messages.success(request, f'Order {order.order_number} status updated to {order.get_status_display()}')
 
             return JsonResponse({
                 'success': True,
@@ -204,7 +205,7 @@ def process_payment(request, pk):
                 payment.save()
 
                 # Update order status
-                order.status = 'IN_PROGRESS'
+                order.status = 'FINISHED'
                 order.processed_by = request.user
                 order.save()
 
@@ -213,15 +214,6 @@ def process_payment(request, pk):
                     deduction_result = BOMService.deduct_ingredients_for_order(order, request.user)
                 except IngredientDeductionError as e:
                     raise ValueError(f'Ingredient deduction failed: {str(e)}')
-
-',
-                    data_snapshot={
-                        'order_number': order.order_number,
-                        'amount': str(payment.amount),
-                        'method': payment.method,
-                        'ingredients_deducted': len(deduction_result['deductions'])
-                    }
-                )
 
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
@@ -291,7 +283,7 @@ def quick_payment(request, pk):
             payment.save()
 
             # Update order status
-            order.status = 'IN_PROGRESS'
+            order.status = 'FINISHED'
             order.processed_by = request.user
             order.save()
 
@@ -302,16 +294,6 @@ def quick_payment(request, pk):
                 raise ValueError(f'Ingredient deduction failed: {str(e)}')
 
             change = cash_amount - float(order.total_amount)
-',
-                data_snapshot={
-                    'order_number': order.order_number,
-                    'amount': str(payment.amount),
-                    'method': payment.method,
-                    'cash_received': str(cash_amount),
-                    'change': f'{change:.2f}',
-                    'ingredients_deducted': len(deduction_result['deductions'])
-                }
-            )
 
             return JsonResponse({
                 'success': True,
@@ -579,7 +561,7 @@ def pos_checkout(request):
                     customer_name=customer_name,
                     table_number=table_number,
                     notes=notes,
-                    status='IN_PROGRESS',
+                    status='FINISHED',
                     total_amount=total_amount,
                     processed_by=request.user
                 )
@@ -614,11 +596,6 @@ def pos_checkout(request):
                     amount=total_amount,
                     status='COMPLETED',
                     processed_by=request.user
-                )
-
-,
-                        'payment_method': payment_method
-                    }
                 )
 
                 # Clear cart
@@ -702,7 +679,7 @@ def pos_create_order(request):
                     customer_name=customer_name,
                     table_number=table_number,
                     notes=notes,
-                    status='IN_PROGRESS',  # POS orders go directly to IN_PROGRESS
+                    status='FINISHED',  # POS orders are completed immediately after payment
                     processed_by=request.user
                 )
 
@@ -796,9 +773,6 @@ def order_archive(request, pk):
     order.is_archived = True
     order.save()
 
-}
-    )
-
     messages.success(request, f'Order "{order.order_number}" archived successfully!')
     return redirect('orders:list')
 
@@ -817,8 +791,86 @@ def order_unarchive(request, pk):
     order.is_archived = False
     order.save()
 
-}
-    )
-
     messages.success(request, f'Order "{order.order_number}" restored successfully!')
     return redirect('products:archived_list')
+
+
+@login_required
+def process_refund(request, pk):
+    """
+    Process a refund for a completed order (admin only)
+    Requires passcode validation
+    Does NOT return ingredients to inventory
+    """
+    # Check if user is admin
+    if not request.user.is_authenticated or not request.user.is_admin:
+        messages.error(request, 'You do not have permission to process refunds!')
+        return redirect('orders:list')
+
+    order = get_object_or_404(Order, pk=pk)
+
+    # Check if order can be refunded
+    if order.status == 'REFUNDED':
+        messages.error(request, f'Order {order.order_number} has already been refunded!')
+        return redirect('orders:detail', pk=pk)
+
+    if order.status != 'FINISHED':
+        messages.error(request, f'Order {order.order_number} cannot be refunded (status: {order.get_status_display()})!')
+        return redirect('orders:detail', pk=pk)
+
+    # Get associated payment
+    try:
+        payment = Payment.objects.get(order=order, status='COMPLETED')
+    except Payment.DoesNotExist:
+        messages.error(request, f'No completed payment found for order {order.order_number}!')
+        return redirect('orders:detail', pk=pk)
+
+    if request.method == 'POST':
+        passcode = request.POST.get('passcode', '')
+        reason = request.POST.get('reason', '').strip()
+
+        # Validate passcode (hardcoded for now - can be moved to settings)
+        REFUND_PASSCODE = '1234'  # TODO: Move to settings or environment variable
+
+        if passcode != REFUND_PASSCODE:
+            messages.error(request, 'Invalid passcode! Refund denied.')
+            return render(request, 'orders/refund_confirm.html', {
+                'order': order,
+                'payment': payment,
+            })
+
+        if not reason:
+            messages.error(request, 'Refund reason is required!')
+            return render(request, 'orders/refund_confirm.html', {
+                'order': order,
+                'payment': payment,
+            })
+
+        try:
+            with transaction.atomic():
+                # Create refund record
+                refund = Refund.objects.create(
+                    order=order,
+                    payment=payment,
+                    amount=payment.amount,
+                    reason=reason,
+                    approved_by=request.user
+                )
+
+                # Update order status to REFUNDED
+                order.status = 'REFUNDED'
+                order.save()
+
+                messages.success(request, f'Order {order.order_number} has been refunded successfully! Amount: ₱{payment.amount}')
+                return redirect('orders:detail', pk=pk)
+
+        except Exception as e:
+            messages.error(request, f'Error processing refund: {str(e)}')
+            return redirect('orders:detail', pk=pk)
+
+    # GET request - show confirmation form
+    context = {
+        'order': order,
+        'payment': payment,
+    }
+    return render(request, 'orders/refund_confirm.html', context)

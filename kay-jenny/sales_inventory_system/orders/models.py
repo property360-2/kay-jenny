@@ -11,7 +11,6 @@ class Order(models.Model):
 
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),
-        ('IN_PROGRESS', 'In Progress'),
         ('FINISHED', 'Finished'),
         ('CANCELLED', 'Cancelled'),
         ('EXPIRED', 'Expired'),

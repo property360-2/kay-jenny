@@ -125,7 +125,7 @@
                             <span class="material-icons text-sm">visibility</span> View
                         </a>
                         <button onclick="archiveProduct({{ product.id }}, '{{ product.name|escapejs }}')" class="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 font-medium text-sm transition flex items-center justify-center gap-1">
-                            <span class="material-icons text-sm">archive</span> Archive
+                            <span class="material-icons text-sm">delete</span> Delete
                         </button>
                     </div>
                 </div>
@@ -362,12 +362,12 @@ function clearAllFilters() {
     loadProducts(1);
 }
 
-// Archive product with confirmation
+// Delete product with confirmation
 function archiveProduct(productId, productName) {
     Confirm.show({
-        title: 'Archive Product',
-        message: `Archive "${productName}"? This will remove it from active listings.`,
-        confirmText: 'Archive',
+        title: 'Delete Product',
+        message: `Delete "${productName}"? This will permanently remove it from the system.`,
+        confirmText: 'Delete',
         cancelText: 'Cancel',
         type: 'danger',
         onConfirm: () => {
