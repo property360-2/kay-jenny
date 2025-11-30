@@ -8,7 +8,11 @@
       "Bash(Remove-Item -Recurse -Force \"C:\\Users\\Administrator\\Desktop\\projects\\kay-jenny\\kay-jenny\\sales_inventory_system\\system\")",
       "Bash(git checkout:*)",
       "Bash(timeout 5 python:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(dir:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)",
+      "Bash(timeout 180 python manage.py:*)"
     ],
     "deny": [],
     "ask": []

@@ -11,9 +11,11 @@
             <p class="mt-1 text-sm text-gray-500">View and manage all orders</p>
         </div>
         <div>
+            {% if not user.is_superuser %}
             <a href="{% url 'orders:pos_home' %}" class="bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-4 rounded-lg transition">
                 + New Order
             </a>
+            {% endif %}
         </div>
     </div>
 
