@@ -527,6 +527,21 @@ def pos_checkout(request):
             notes = request.POST.get('notes', '').strip()
             payment_method = request.POST.get('payment_method', 'CASH')
 
+            # Validate customer paid amount
+            customer_paid_amount_str = request.POST.get('customer_paid_amount', '').strip()
+            if not customer_paid_amount_str:
+                messages.error(request, 'Please enter the amount paid by the customer.')
+                return redirect('orders:pos_checkout')
+
+            try:
+                customer_paid_amount = float(customer_paid_amount_str)
+                if customer_paid_amount <= 0:
+                    messages.error(request, 'Amount paid must be greater than zero.')
+                    return redirect('orders:pos_checkout')
+            except ValueError:
+                messages.error(request, 'Invalid amount entered. Please enter a valid number.')
+                return redirect('orders:pos_checkout')
+
             # Build cart items
             product_ids = [int(k) for k in cart.keys()]
             products_by_id = {p.id: p for p in Product.objects.filter(id__in=product_ids)}

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Products - Cafe Cantina{% endblock %}
+{% block title %}Products - Cafe Kantina{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -8,7 +8,7 @@
     <div class="flex justify-between items-center">
         <div>
             <h1 class="text-3xl font-bold text-gray-900">Product Management</h1>
-            <p class="mt-1 text-sm text-gray-500">Manage your pizza menu and inventory</p>
+            <p class="mt-1 text-sm text-gray-500">Manage your coffee menu and inventory</p>
         </div>
         <div class="flex gap-3">
             <a href="{% url 'products:ingredient_list' %}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-sm">
@@ -97,7 +97,7 @@
                 </div>
                 {% else %}
                 <div class="h-48 bg-gradient-to-br from-fjc-yellow-100 to-fjc-blue-100 flex items-center justify-center">
-                    <span class="material-icons text-7xl text-fjc-yellow-600">restaurant</span>
+                    <span class="material-icons text-7xl text-fjc-blue-700">local_cafe</span>
                 </div>
                 {% endif %}
 
@@ -117,7 +117,6 @@
 
                     <div class="flex justify-between items-center mb-4">
                         <span class="text-2xl font-bold text-fjc-blue-600">₱{{ product.price }}</span>
-                        <span class="text-sm text-gray-500">Stock: <span class="font-semibold">{{ product.calculated_stock }}</span></span>
                     </div>
 
                     <div class="flex space-x-2">

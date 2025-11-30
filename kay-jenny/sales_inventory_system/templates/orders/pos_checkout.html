@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Checkout - Cafe Cantina POS{% endblock %}
+{% block title %}Checkout - Cafe Kantina POS{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -120,8 +120,8 @@
                     <p id="insufficient-message" class="text-lg font-bold text-red-600">Insufficient: ₱0.00 short</p>
                 </div>
 
-                <div class="bg-green-50 border border-green-300 p-3 rounded-lg text-sm text-green-800">
-                    <span class="material-icons">check_circle</span> Payment method: Cash
+                <div id="payment-method-display" class="bg-green-50 border border-green-300 p-3 rounded-lg text-sm text-green-800">
+                    <span class="material-icons">check_circle</span> Payment method: <span id="selected-payment-method">Cash</span>
                 </div>
                 {% else %}
                 <div class="text-center text-gray-500">
@@ -170,12 +170,26 @@
         }
     }
 
-    // Add event listener for change calculation
+    // ===== Payment Method Display Update =====
+    function updatePaymentMethodDisplay() {
+        const selectedMethod = document.querySelector('input[name="payment_method"]:checked').value;
+        const displayText = document.getElementById('selected-payment-method');
+        displayText.textContent = selectedMethod === 'CASH' ? 'Cash' : selectedMethod === 'GCASH' ? 'GCash' : selectedMethod;
+    }
+
+    // Add event listeners for change calculation
     customerPaidInput.addEventListener('input', updateChangeCalculation);
+
+    // Add event listeners for payment method radio buttons
+    const paymentRadios = document.querySelectorAll('input[name="payment_method"]');
+    paymentRadios.forEach(radio => {
+        radio.addEventListener('change', updatePaymentMethodDisplay);
+    });
 
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         updateChangeCalculation();
+        updatePaymentMethodDisplay();
     });
 </script>
 {% endblock %}

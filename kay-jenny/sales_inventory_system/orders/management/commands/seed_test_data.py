@@ -13,7 +13,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        self.stdout.write(self.style.MIGRATE_HEADING("Seeding Cafe Cantina test data..."))
+        self.stdout.write(self.style.MIGRATE_HEADING("Seeding Cafe Kantina test data..."))
 
         admin, cashier = self._seed_users()
         ingredients = self._seed_ingredients()

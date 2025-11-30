@@ -544,10 +544,9 @@ def ingredient_edit(request, pk):
 def ingredient_delete(request, pk):
     """Delete an ingredient"""
     ingredient = get_object_or_404(Ingredient, pk=pk)
-    name = ingredient.name
     ingredient.delete()
 
-    messages.success(request, f'Ingredient "{name}" deleted successfully!')
+    messages.success(request, 'Item has been deleted')
     return redirect('products:ingredient_list')
 
 # ==================== Recipe/BOM Management Views ====================

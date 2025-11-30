@@ -15,7 +15,7 @@ from sales_inventory_system.system.models import AuditTrail, Archive
 
 
 class Command(BaseCommand):
-    help = 'Seed comprehensive test data for the Cafe Cantina system'
+    help = 'Seed comprehensive test data for the Cafe Kantina system'
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Starting comprehensive data seeding...'))
@@ -79,7 +79,7 @@ class Command(BaseCommand):
             defaults={
                 'first_name': 'Admin',
                 'last_name': 'User',
-                'email': 'admin@fjcpizza.com',
+                'email': 'admin@fjccoffee.com',
                 'phone': '555-0001',
                 'role': 'ADMIN',
                 'is_staff': True,
@@ -109,7 +109,7 @@ class Command(BaseCommand):
                 defaults={
                     'first_name': first_name,
                     'last_name': last_name,
-                    'email': f'{username}@fjcpizza.com',
+                    'email': f'{username}@fjccoffee.com',
                     'phone': f'555-000{i+2}',
                     'role': 'CASHIER',
                 }
@@ -123,10 +123,10 @@ class Command(BaseCommand):
         return admin_user, cashier_users
 
     def create_ingredients(self, created_by_user):
-        """Create pizza ingredients"""
+        """Create coffee ingredients"""
         ingredients_data = [
             {
-                'name': 'Pizza Flour',
+                'name': 'Coffee Flour',
                 'unit': 'g',
                 'current_stock': Decimal('50000.000'),
                 'min_stock': Decimal('10000.000'),
@@ -231,39 +231,39 @@ class Command(BaseCommand):
         return ingredients
 
     def create_products(self):
-        """Create pizza products"""
+        """Create coffee products"""
         products_data = [
             {
-                'name': 'Margherita Pizza',
-                'description': 'Classic pizza with tomato sauce, mozzarella, and basil',
+                'name': 'Margherita Coffee',
+                'description': 'Classic coffee with tomato sauce, mozzarella, and basil',
                 'price': Decimal('12.99'),
                 'stock': 20,
                 'threshold': 5,
-                'category': 'Pizzas',
+                'category': 'Coffees',
             },
             {
-                'name': 'Pepperoni Pizza',
-                'description': 'Pizza with tomato sauce, mozzarella, and pepperoni',
+                'name': 'Pepperoni Coffee',
+                'description': 'Coffee with tomato sauce, mozzarella, and pepperoni',
                 'price': Decimal('14.99'),
                 'stock': 15,
                 'threshold': 5,
-                'category': 'Pizzas',
+                'category': 'Coffees',
             },
             {
-                'name': 'Vegetarian Pizza',
-                'description': 'Pizza with vegetables including mushrooms, peppers, onions',
+                'name': 'Vegetarian Coffee',
+                'description': 'Coffee with vegetables including mushrooms, peppers, onions',
                 'price': Decimal('13.99'),
                 'stock': 10,
                 'threshold': 5,
-                'category': 'Pizzas',
+                'category': 'Coffees',
             },
             {
-                'name': 'Supreme Pizza',
-                'description': 'Loaded pizza with multiple toppings',
+                'name': 'Supreme Coffee',
+                'description': 'Loaded coffee with multiple toppings',
                 'price': Decimal('16.99'),
                 'stock': 8,
                 'threshold': 3,
-                'category': 'Pizzas',
+                'category': 'Coffees',
             },
             {
                 'name': 'Cola',
@@ -318,7 +318,7 @@ class Command(BaseCommand):
         return products
 
     def create_recipes(self, products, ingredients, created_by_user):
-        """Create recipes/BOM for all products (pizzas, beverages, sides)"""
+        """Create recipes/BOM for all products (coffees, beverages, sides)"""
         recipes = {}
 
         for product in products.values():
@@ -331,9 +331,9 @@ class Command(BaseCommand):
                 self.stdout.write(f'  Created recipe for: {product.name}')
 
                 # Define BOM based on product type and name
-                if product.name == 'Margherita Pizza':
+                if product.name == 'Margherita Coffee':
                     recipe_ingredients = [
-                        (ingredients['Pizza Flour'], Decimal('0.400')),
+                        (ingredients['Coffee Flour'], Decimal('0.400')),
                         (ingredients['Tomato Sauce'], Decimal('0.150')),
                         (ingredients['Mozzarella Cheese'], Decimal('0.200')),
                         (ingredients['Fresh Basil'], Decimal('5.000')),
@@ -342,9 +342,9 @@ class Command(BaseCommand):
                         (ingredients['Salt'], Decimal('0.005')),
                         (ingredients['Water'], Decimal('0.120')),
                     ]
-                elif product.name == 'Pepperoni Pizza':
+                elif product.name == 'Pepperoni Coffee':
                     recipe_ingredients = [
-                        (ingredients['Pizza Flour'], Decimal('0.400')),
+                        (ingredients['Coffee Flour'], Decimal('0.400')),
                         (ingredients['Tomato Sauce'], Decimal('0.150')),
                         (ingredients['Mozzarella Cheese'], Decimal('0.200')),
                         (ingredients['Pepperoni'], Decimal('0.100')),
@@ -353,9 +353,9 @@ class Command(BaseCommand):
                         (ingredients['Salt'], Decimal('0.005')),
                         (ingredients['Water'], Decimal('0.120')),
                     ]
-                elif product.name == 'Vegetarian Pizza':
+                elif product.name == 'Vegetarian Coffee':
                     recipe_ingredients = [
-                        (ingredients['Pizza Flour'], Decimal('0.400')),
+                        (ingredients['Coffee Flour'], Decimal('0.400')),
                         (ingredients['Tomato Sauce'], Decimal('0.150')),
                         (ingredients['Mozzarella Cheese'], Decimal('0.200')),
                         (ingredients['Mushrooms'], Decimal('0.080')),
@@ -366,9 +366,9 @@ class Command(BaseCommand):
                         (ingredients['Salt'], Decimal('0.005')),
                         (ingredients['Water'], Decimal('0.120')),
                     ]
-                elif product.name == 'Supreme Pizza':
+                elif product.name == 'Supreme Coffee':
                     recipe_ingredients = [
-                        (ingredients['Pizza Flour'], Decimal('0.400')),
+                        (ingredients['Coffee Flour'], Decimal('0.400')),
                         (ingredients['Tomato Sauce'], Decimal('0.150')),
                         (ingredients['Mozzarella Cheese'], Decimal('0.250')),
                         (ingredients['Pepperoni'], Decimal('0.080')),
@@ -382,7 +382,7 @@ class Command(BaseCommand):
                     ]
                 elif product.name == 'Garlic Bread':
                     recipe_ingredients = [
-                        (ingredients['Pizza Flour'], Decimal('0.300')),
+                        (ingredients['Coffee Flour'], Decimal('0.300')),
                         (ingredients['Olive Oil'], Decimal('0.050')),
                         (ingredients['Salt'], Decimal('0.003')),
                         (ingredients['Water'], Decimal('0.100')),

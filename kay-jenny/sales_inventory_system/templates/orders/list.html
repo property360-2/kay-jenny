@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Orders - Cafe Cantina{% endblock %}
+{% block title %}Orders - Cafe Kantina{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -93,7 +93,6 @@
                         <tr class="bg-gray-50 border-b border-gray-200">
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Order ID</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Customer</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Table</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Items</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Total</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
@@ -108,7 +107,6 @@
                                 <span class="font-semibold text-gray-900">{{ order.order_number }}</span>
                             </td>
                             <td class="px-6 py-4 text-gray-600">{{ order.customer_name }}</td>
-                            <td class="px-6 py-4 text-gray-600">{{ order.table_number|default:"-" }}</td>
                             <td class="px-6 py-4 text-sm text-gray-600">
                                 {% for item in order.items.all|slice:":2" %}
                                     {{ item.quantity }}x {{ item.product.name }}{% if not forloop.last %}, {% endif %}
@@ -177,8 +175,6 @@
                     </div>
                     <div class="space-y-2 mb-3">
                         <div class="flex justify-between text-sm">
-                            <span class="text-gray-500">Table:</span>
-                            <span class="text-gray-900">{{ order.table_number|default:"-" }}</span>
                         </div>
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-500">Items:</span>
@@ -423,7 +419,6 @@ function renderOrders(orders, pagination) {
                         <tr class="bg-gray-50 border-b border-gray-200">
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Order ID</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Customer</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Table</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Items</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Total</th>
                             <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
@@ -459,7 +454,6 @@ function renderOrders(orders, pagination) {
                     <span class="font-semibold text-gray-900">${order.order_number}</span>
                 </td>
                 <td class="px-6 py-4 text-gray-600">${order.customer_name}</td>
-                <td class="px-6 py-4 text-gray-600">${order.table_number}</td>
                 <td class="px-6 py-4 text-sm text-gray-600">${order.items_summary}</td>
                 <td class="px-6 py-4 font-medium text-fjc-blue-600">₱${order.total_amount}</td>
                 <td class="px-6 py-4 text-sm text-gray-600">${order.created_at}</td>

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Comprehensive Data Seeder for FJC Pizza Sales & Inventory System
+Comprehensive Data Seeder for FJC Coffee Sales & Inventory System
 
 This script validates the Django environment and models before seeding data.
 It checks for:
@@ -141,7 +141,7 @@ def seed_users():
     users_data = [
         {
             'username': 'cashier',
-            'email': 'cashier@fjcpizza.com',
+            'email': 'cashier@fjccoffee.com',
             'password': 'cashier123',
             'first_name': 'John',
             'last_name': 'Doe',
@@ -150,7 +150,7 @@ def seed_users():
         },
         {
             'username': 'maria',
-            'email': 'maria@fjcpizza.com',
+            'email': 'maria@fjccoffee.com',
             'password': 'maria123',
             'first_name': 'Maria',
             'last_name': 'Santos',
@@ -159,7 +159,7 @@ def seed_users():
         },
         {
             'username': 'jose',
-            'email': 'jose@fjcpizza.com',
+            'email': 'jose@fjccoffee.com',
             'password': 'jose123',
             'first_name': 'Jose',
             'last_name': 'Reyes',
@@ -168,7 +168,7 @@ def seed_users():
         },
         {
             'username': 'manager',
-            'email': 'manager@fjcpizza.com',
+            'email': 'manager@fjccoffee.com',
             'password': 'manager123',
             'first_name': 'Ana',
             'last_name': 'Garcia',
@@ -200,15 +200,15 @@ def seed_products():
     print("\n🍕 Seeding products...")
 
     products_data = [
-        # Pizzas
-        {'name': 'Margherita Pizza', 'description': 'Classic pizza with tomato sauce, mozzarella, and fresh basil', 'price': Decimal('299.00'), 'stock': 50, 'threshold': 10, 'category': 'Pizza'},
-        {'name': 'Pepperoni Pizza', 'description': 'Loaded with pepperoni slices and mozzarella cheese', 'price': Decimal('349.00'), 'stock': 45, 'threshold': 10, 'category': 'Pizza'},
-        {'name': 'Hawaiian Pizza', 'description': 'Ham, pineapple, and mozzarella cheese', 'price': Decimal('329.00'), 'stock': 40, 'threshold': 10, 'category': 'Pizza'},
-        {'name': 'Supreme Pizza', 'description': 'Loaded with pepperoni, sausage, bell peppers, onions, and olives', 'price': Decimal('399.00'), 'stock': 35, 'threshold': 10, 'category': 'Pizza'},
-        {'name': 'Four Cheese Pizza', 'description': 'Mozzarella, parmesan, gouda, and cheddar cheese blend', 'price': Decimal('379.00'), 'stock': 30, 'threshold': 10, 'category': 'Pizza'},
-        {'name': 'BBQ Chicken Pizza', 'description': 'Grilled chicken, BBQ sauce, onions, and mozzarella', 'price': Decimal('389.00'), 'stock': 25, 'threshold': 10, 'category': 'Pizza'},
-        {'name': 'Veggie Supreme Pizza', 'description': 'Mushrooms, bell peppers, onions, olives, and tomatoes', 'price': Decimal('339.00'), 'stock': 28, 'threshold': 10, 'category': 'Pizza'},
-        {'name': 'Meat Lovers Pizza', 'description': 'Pepperoni, sausage, bacon, ham, and ground beef', 'price': Decimal('429.00'), 'stock': 20, 'threshold': 8, 'category': 'Pizza'},
+        # Coffees
+        {'name': 'Margherita Coffee', 'description': 'Classic coffee with tomato sauce, mozzarella, and fresh basil', 'price': Decimal('299.00'), 'stock': 50, 'threshold': 10, 'category': 'Coffee'},
+        {'name': 'Pepperoni Coffee', 'description': 'Loaded with pepperoni slices and mozzarella cheese', 'price': Decimal('349.00'), 'stock': 45, 'threshold': 10, 'category': 'Coffee'},
+        {'name': 'Hawaiian Coffee', 'description': 'Ham, pineapple, and mozzarella cheese', 'price': Decimal('329.00'), 'stock': 40, 'threshold': 10, 'category': 'Coffee'},
+        {'name': 'Supreme Coffee', 'description': 'Loaded with pepperoni, sausage, bell peppers, onions, and olives', 'price': Decimal('399.00'), 'stock': 35, 'threshold': 10, 'category': 'Coffee'},
+        {'name': 'Four Cheese Coffee', 'description': 'Mozzarella, parmesan, gouda, and cheddar cheese blend', 'price': Decimal('379.00'), 'stock': 30, 'threshold': 10, 'category': 'Coffee'},
+        {'name': 'BBQ Chicken Coffee', 'description': 'Grilled chicken, BBQ sauce, onions, and mozzarella', 'price': Decimal('389.00'), 'stock': 25, 'threshold': 10, 'category': 'Coffee'},
+        {'name': 'Veggie Supreme Coffee', 'description': 'Mushrooms, bell peppers, onions, olives, and tomatoes', 'price': Decimal('339.00'), 'stock': 28, 'threshold': 10, 'category': 'Coffee'},
+        {'name': 'Meat Lovers Coffee', 'description': 'Pepperoni, sausage, bacon, ham, and ground beef', 'price': Decimal('429.00'), 'stock': 20, 'threshold': 8, 'category': 'Coffee'},
 
         # Sides
         {'name': 'Garlic Bread', 'description': 'Toasted bread with garlic butter and herbs', 'price': Decimal('89.00'), 'stock': 100, 'threshold': 20, 'category': 'Sides'},

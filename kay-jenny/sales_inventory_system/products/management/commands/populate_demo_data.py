@@ -1,5 +1,5 @@
 """
-Management command to populate the database with comprehensive demo data for Cafe Cantina
+Management command to populate the database with comprehensive demo data for Cafe Kantina
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -13,7 +13,7 @@ from sales_inventory_system.system.models import AuditTrail
 
 
 class Command(BaseCommand):
-    help = 'Populate database with comprehensive demo data for Cafe Cantina'
+    help = 'Populate database with comprehensive demo data for Cafe Kantina'
 
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('Starting demo data population...'))
@@ -42,7 +42,7 @@ class Command(BaseCommand):
         users_data = [
             {
                 'username': 'cashier',
-                'email': 'cashier@fjcpizza.com',
+                'email': 'cashier@fjccoffee.com',
                 'password': 'cashier123',
                 'first_name': 'John',
                 'last_name': 'Doe',
@@ -51,7 +51,7 @@ class Command(BaseCommand):
             },
             {
                 'username': 'maria',
-                'email': 'maria@fjcpizza.com',
+                'email': 'maria@fjccoffee.com',
                 'password': 'maria123',
                 'first_name': 'Maria',
                 'last_name': 'Santos',
@@ -60,7 +60,7 @@ class Command(BaseCommand):
             },
             {
                 'username': 'jose',
-                'email': 'jose@fjcpizza.com',
+                'email': 'jose@fjccoffee.com',
                 'password': 'jose123',
                 'first_name': 'Jose',
                 'last_name': 'Reyes',
@@ -69,7 +69,7 @@ class Command(BaseCommand):
             },
             {
                 'username': 'manager',
-                'email': 'manager@fjcpizza.com',
+                'email': 'manager@fjccoffee.com',
                 'password': 'manager123',
                 'first_name': 'Ana',
                 'last_name': 'Garcia',
@@ -84,74 +84,74 @@ class Command(BaseCommand):
                 self.stdout.write(f'  ✓ Created {user_data["role"].lower()}: {user.username}')
 
     def create_products(self):
-        """Create demo pizza products"""
+        """Create demo coffee products"""
         self.stdout.write('\n🍕 Creating products...')
 
         products_data = [
-            # Pizzas
+            # Coffees
             {
-                'name': 'Margherita Pizza',
-                'description': 'Classic pizza with tomato sauce, mozzarella, and fresh basil',
+                'name': 'Margherita Coffee',
+                'description': 'Classic coffee with tomato sauce, mozzarella, and fresh basil',
                 'price': Decimal('299.00'),
                 'stock': 50,
                 'threshold': 10,
-                'category': 'Pizza'
+                'category': 'Coffee'
             },
             {
-                'name': 'Pepperoni Pizza',
+                'name': 'Pepperoni Coffee',
                 'description': 'Loaded with pepperoni slices and mozzarella cheese',
                 'price': Decimal('349.00'),
                 'stock': 45,
                 'threshold': 10,
-                'category': 'Pizza'
+                'category': 'Coffee'
             },
             {
-                'name': 'Hawaiian Pizza',
+                'name': 'Hawaiian Coffee',
                 'description': 'Ham, pineapple, and mozzarella cheese',
                 'price': Decimal('329.00'),
                 'stock': 40,
                 'threshold': 10,
-                'category': 'Pizza'
+                'category': 'Coffee'
             },
             {
-                'name': 'Supreme Pizza',
+                'name': 'Supreme Coffee',
                 'description': 'Loaded with pepperoni, sausage, bell peppers, onions, and olives',
                 'price': Decimal('399.00'),
                 'stock': 35,
                 'threshold': 10,
-                'category': 'Pizza'
+                'category': 'Coffee'
             },
             {
-                'name': 'Four Cheese Pizza',
+                'name': 'Four Cheese Coffee',
                 'description': 'Mozzarella, parmesan, gouda, and cheddar cheese blend',
                 'price': Decimal('379.00'),
                 'stock': 30,
                 'threshold': 10,
-                'category': 'Pizza'
+                'category': 'Coffee'
             },
             {
-                'name': 'BBQ Chicken Pizza',
+                'name': 'BBQ Chicken Coffee',
                 'description': 'Grilled chicken, BBQ sauce, onions, and mozzarella',
                 'price': Decimal('389.00'),
                 'stock': 25,
                 'threshold': 10,
-                'category': 'Pizza'
+                'category': 'Coffee'
             },
             {
-                'name': 'Veggie Supreme Pizza',
+                'name': 'Veggie Supreme Coffee',
                 'description': 'Mushrooms, bell peppers, onions, olives, and tomatoes',
                 'price': Decimal('339.00'),
                 'stock': 28,
                 'threshold': 10,
-                'category': 'Pizza'
+                'category': 'Coffee'
             },
             {
-                'name': 'Meat Lovers Pizza',
+                'name': 'Meat Lovers Coffee',
                 'description': 'Pepperoni, sausage, bacon, ham, and ground beef',
                 'price': Decimal('429.00'),
                 'stock': 20,
                 'threshold': 8,
-                'category': 'Pizza'
+                'category': 'Coffee'
             },
 
             # Sides

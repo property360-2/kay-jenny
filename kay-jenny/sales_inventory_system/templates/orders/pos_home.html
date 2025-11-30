@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load custom_filters %}
 
-{% block title %}POS - Select Products - Cafe Cantina{% endblock %}
+{% block title %}POS - Select Products - Cafe Kantina{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -58,7 +58,7 @@
                         {% if product.image %}
                         <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover" loading="lazy">
                         {% else %}
-                        <div class="text-4xl text-fjc-blue-700">🍞</div>
+                        <span class="material-icons text-6xl text-fjc-blue-700">local_cafe</span>
                         {% endif %}
                     </div>
 
