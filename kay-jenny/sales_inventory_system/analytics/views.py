@@ -408,61 +408,70 @@ def cashier_sales_report(request):
     - Payment method (CASH, GCASH, or ALL)
     """
     # Parse filter parameters
-    date_from = request.GET.get('date_from', '')
-    date_to = request.GET.get('date_to', '')
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
     payment_method = request.GET.get('payment_method', 'ALL')
-    days_filter = request.GET.get('days', '')  # 1, 7, 30, 90
+    days_filter = request.GET.get('days', '').strip()  # 1, 7, 30, 90
 
     # Build queryset - only COMPLETED payments processed by current user
     payments = Payment.objects.filter(
         status='COMPLETED',
         processed_by=request.user
-    ).select_related('order')
+    ).select_related('order').order_by('-created_at')
 
     # Apply date filters
     if days_filter:
         try:
-            cutoff = timezone.now() - timedelta(days=int(days_filter))
-            payments = payments.filter(created_at__gte=cutoff)
-        except ValueError:
-            pass
+            days_int = int(days_filter)
+            if days_int > 0:  # Only apply valid positive day values
+                cutoff = timezone.now() - timedelta(days=days_int)
+                payments = payments.filter(created_at__gte=cutoff)
+        except (ValueError, TypeError):
+            # Invalid days filter, skip silently
+            days_filter = ''
     elif date_from and date_to:
         # Custom date range
         try:
+            # Validate date format
+            from datetime import datetime as dt
+            dt.strptime(date_from, '%Y-%m-%d')
+            dt.strptime(date_to, '%Y-%m-%d')
             payments = payments.filter(
                 created_at__date__gte=date_from,
                 created_at__date__lte=date_to
             )
-        except Exception:
-            pass
+        except (ValueError, TypeError):
+            # Invalid date format, skip silently
+            date_from = ''
+            date_to = ''
 
     # Apply payment method filter
-    if payment_method != 'ALL':
+    if payment_method != 'ALL' and payment_method in ['CASH', 'GCASH']:
         payments = payments.filter(method=payment_method)
+    else:
+        payment_method = 'ALL'
 
-    # Calculate totals
-    total_sales = payments.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-
-    # Breakdown by payment method
-    cash_total = payments.filter(method='CASH').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-    gcash_total = payments.filter(method='GCASH').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-
-    # Transaction counts
-    transaction_count = payments.count()
-    cash_count = payments.filter(method='CASH').count()
-    gcash_count = payments.filter(method='GCASH').count()
+    # Calculate totals - use optimized single query with annotations
+    aggregates = payments.aggregate(
+        total=Coalesce(Sum('amount'), Decimal('0.00')),
+        cash_total=Coalesce(Sum('amount', filter=Q(method='CASH')), Decimal('0.00')),
+        gcash_total=Coalesce(Sum('amount', filter=Q(method='GCASH')), Decimal('0.00')),
+        transaction_count=Count('id'),
+        cash_count=Count('id', filter=Q(method='CASH')),
+        gcash_count=Count('id', filter=Q(method='GCASH')),
+    )
 
     # Get recent payments (limit for performance)
-    recent_payments = payments.order_by('-created_at')[:100]
+    recent_payments = list(payments[:100])
 
     context = {
         'payments': recent_payments,
-        'total_sales': total_sales,
-        'cash_total': cash_total,
-        'gcash_total': gcash_total,
-        'transaction_count': transaction_count,
-        'cash_count': cash_count,
-        'gcash_count': gcash_count,
+        'total_sales': aggregates['total'],
+        'cash_total': aggregates['cash_total'],
+        'gcash_total': aggregates['gcash_total'],
+        'transaction_count': aggregates['transaction_count'],
+        'cash_count': aggregates['cash_count'],
+        'gcash_count': aggregates['gcash_count'],
         'date_from': date_from,
         'date_to': date_to,
         'payment_method': payment_method,

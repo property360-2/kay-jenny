@@ -5,6 +5,14 @@
 
 {% block content %}
 <div class="space-y-6">
+    <!-- Back Button -->
+    <div>
+        <a href="{% url 'orders:list' %}" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition">
+            <span class="material-icons">arrow_back</span>
+            <span>Back to Orders</span>
+        </a>
+    </div>
+
     <!-- Header -->
     <div class="flex justify-between items-center">
         <div>
