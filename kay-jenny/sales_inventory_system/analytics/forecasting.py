@@ -70,36 +70,85 @@ def forecast_sales_holt_winters(historical_data, forecast_periods=7, seasonal_pe
         dict: Contains forecast values, confidence intervals, and model info
     """
     try:
-        # Ensure we have enough data for seasonal model
-        if len(historical_data) < seasonal_periods * 2:
-            # Use simple exponential smoothing if not enough data
+        # Validate input data
+        if len(historical_data) == 0:
+            raise ValueError("Historical data is empty")
+
+        # Remove any NaN or infinite values
+        historical_data = historical_data.dropna()
+        historical_data = historical_data[np.isfinite(historical_data)]
+
+        if len(historical_data) < 3:
+            raise ValueError("Insufficient historical data for forecasting")
+
+        # Determine best seasonal periods based on data length
+        # Need at least 2 complete seasons for seasonal decomposition
+        min_data_required = seasonal_periods * 2
+
+        if len(historical_data) < min_data_required:
+            # Not enough data for seasonal model, use trend-only model
             model = ExponentialSmoothing(
                 historical_data,
                 trend='add',
-                seasonal=None
+                seasonal=None,
+                initialization_method='estimated'
             )
         else:
             # Use full Holt-Winters with trend and seasonality
-            model = ExponentialSmoothing(
-                historical_data,
-                trend='add',
-                seasonal='add',
-                seasonal_periods=seasonal_periods
-            )
+            try:
+                # Try multiplicative seasonal first (better for varied magnitude data)
+                model = ExponentialSmoothing(
+                    historical_data,
+                    trend='add',
+                    seasonal='mul',
+                    seasonal_periods=seasonal_periods,
+                    initialization_method='estimated'
+                )
+            except Exception:
+                try:
+                    # Fall back to additive if multiplicative fails
+                    model = ExponentialSmoothing(
+                        historical_data,
+                        trend='add',
+                        seasonal='add',
+                        seasonal_periods=seasonal_periods,
+                        initialization_method='estimated'
+                    )
+                except Exception:
+                    # Final fallback: trend-only model
+                    model = ExponentialSmoothing(
+                        historical_data,
+                        trend='add',
+                        seasonal=None,
+                        initialization_method='estimated'
+                    )
 
-        # Fit the model
-        fitted_model = model.fit()
+        # Fit the model with optimized parameters
+        fitted_model = model.fit(optimized=True)
 
         # Generate forecast
-        forecast = fitted_model.forecast(steps=forecast_periods)
+        try:
+            forecast = fitted_model.forecast(steps=forecast_periods)
+        except Exception as e:
+            raise ValueError(f"Forecast generation failed: {str(e)}")
 
         # Calculate fitted values (for plotting historical fit)
         fitted_values = fitted_model.fittedvalues
 
         # Calculate prediction intervals (95% confidence)
-        # Simple approximation using residual standard error
-        residuals = historical_data - fitted_values
-        std_error = np.std(residuals)
+        # Use residual standard error for better confidence intervals
+        residuals = historical_data.iloc[len(historical_data) - len(fitted_values):].values - fitted_values.values
+
+        # Handle edge cases in residuals
+        residuals = residuals[np.isfinite(residuals)]
+        if len(residuals) > 0:
+            std_error = np.std(residuals)
+        else:
+            std_error = np.mean(historical_data) * 0.1  # Use 10% of mean as fallback
+
+        # Ensure std_error is not zero or negative
+        if std_error <= 0:
+            std_error = np.mean(historical_data) * 0.1 if np.mean(historical_data) > 0 else 1.0
 
         # Confidence intervals widen as we go further into future
         forecast_dates = pd.date_range(
@@ -140,13 +189,28 @@ def forecast_sales_holt_winters(historical_data, forecast_periods=7, seasonal_pe
             })
 
         # Model statistics
-        mse = float(np.mean(residuals**2))
+        if len(residuals) > 0:
+            mse = float(np.mean(residuals**2))
+            mae = float(np.mean(np.abs(residuals)))
+            rmse = float(np.sqrt(mse))
+        else:
+            mse = 0.0
+            mae = 0.0
+            rmse = 0.0
+
+        try:
+            aic = float(fitted_model.aic)
+            bic = float(fitted_model.bic)
+        except Exception:
+            aic = 0.0
+            bic = 0.0
+
         stats = {
-            'aic': float(fitted_model.aic),
-            'bic': float(fitted_model.bic),
+            'aic': aic,
+            'bic': bic,
             'mse': mse,
-            'mae': float(np.mean(np.abs(residuals))),
-            'rmse': float(np.sqrt(mse))
+            'mae': mae,
+            'rmse': rmse
         }
 
         return {
@@ -209,5 +273,15 @@ def forecast_sales(days_back=30, days_ahead=7):
             'forecast_min': float(np.min(forecast_values)),
             'forecast_max': float(np.max(forecast_values))
         }
+
+        # Prepare split confidence intervals for JavaScript chart (alternative format)
+        forecast_result['confidence_intervals_lower'] = [
+            {'date': ci['date'], 'value': ci['lower']}
+            for ci in forecast_result['confidence_intervals']
+        ]
+        forecast_result['confidence_intervals_upper'] = [
+            {'date': ci['date'], 'value': ci['upper']}
+            for ci in forecast_result['confidence_intervals']
+        ]
 
     return forecast_result

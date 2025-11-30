@@ -139,10 +139,6 @@
                                     <button onclick="markOrderCompleted({{ order.pk }})" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition flex items-center gap-1">
                                         <span class="material-icons text-sm">check_circle</span> Done
                                     </button>
-                                {% elif order.status == 'FINISHED' %}
-                                    <button onclick="archiveOrder({{ order.pk }})" class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition flex items-center gap-1">
-                                        <span class="material-icons text-sm">archive</span> Archive
-                                    </button>
                                 {% endif %}
                                 <a href="{% url 'orders:detail' order.pk %}" class="bg-fjc-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-fjc-blue-700 transition flex items-center gap-1">
                                     <span class="material-icons text-sm">visibility</span> View
@@ -703,34 +699,6 @@ function markOrderCompleted(orderId) {
 }
 
 // Archive order
-function archiveOrder(orderId) {
-    openConfirmationModal(
-        ' Archive Order?',
-        'This order will be moved to archives and hidden from the main list.',
-        '📦',
-        () => {
-            fetch(`/orders/${orderId}/archive/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast('Order archived!');
-                    // Reload orders without page reload
-                    loadOrders(1);
-                } else {
-                    showToast(data.message || 'Error archiving order', 'error');
-                }
-            })
-            .catch(error => {
-                showToast('Error: ' + error.message, 'error');
-            });
-        }
-    );
-}
 
 // Open payment modal
 function openPaymentModal(orderId, orderAmount) {

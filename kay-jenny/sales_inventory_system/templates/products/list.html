@@ -123,9 +123,6 @@
                         <a href="{% url 'products:detail' product.id %}" class="flex-1 bg-fjc-blue-600 text-white px-3 py-2 rounded-lg hover:bg-fjc-blue-700 font-medium text-sm text-center transition flex items-center justify-center gap-1">
                             <span class="material-icons text-sm">visibility</span> View
                         </a>
-                        <button onclick="archiveProduct({{ product.id }}, '{{ product.name|escapejs }}')" class="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 font-medium text-sm transition flex items-center justify-center gap-1">
-                            <span class="material-icons text-sm">delete</span> Delete
-                        </button>
                     </div>
                 </div>
             </div>
@@ -281,9 +278,6 @@ function renderProducts(products, pagination) {
                         <a href="/products/${product.id}/" class="flex-1 bg-fjc-blue-600 text-white px-3 py-2 rounded-lg hover:bg-fjc-blue-700 font-medium text-sm text-center transition flex items-center justify-center gap-1">
                             <span class="material-icons text-base">visibility</span> View
                         </a>
-                        <button onclick="archiveProduct(${product.id}, '${product.name}')"
-                                class="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 font-medium text-sm transition flex items-center justify-center gap-1">
-                            <span class="material-icons text-base">archive</span> Archive
                         </button>
                     </div>
                 </div>
@@ -362,19 +356,6 @@ function clearAllFilters() {
 }
 
 // Delete product with confirmation
-function archiveProduct(productId, productName) {
-    Confirm.show({
-        title: 'Delete Product',
-        message: `Delete "${productName}"? This will permanently remove it from the system.`,
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
-        type: 'danger',
-        onConfirm: () => {
-            Loading.show();
-            window.location.href = `/products/${productId}/archive/`;
-        }
-    });
-}
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {

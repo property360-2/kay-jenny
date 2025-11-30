@@ -256,52 +256,6 @@
                 <p class="mt-1 text-xs text-gray-500">Upload a product image (JPG, PNG, etc.)</p>
             </div>
 
-            <!-- Recipe/BOM Section (only for editing) -->
-            {% if product %}
-            <div class="pt-6 border-t border-gray-200">
-                <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-900">Recipe (Bill of Materials)</h3>
-                        <p class="text-sm text-gray-500 mt-1">Define ingredients and quantities for this product</p>
-                    </div>
-                    <a href="{% url 'products:recipe_edit' product.id %}" class="px-4 py-2 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium text-sm flex items-center gap-1">
-                        <span class="material-icons text-base">add_circle</span> Manage Recipe
-                    </a>
-                </div>
-
-                <!-- Recipe Preview -->
-                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
-                    {% if product.recipe.ingredients.all %}
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead class="border-b border-gray-300">
-                                <tr>
-                                    <th class="text-left py-2 px-3 font-semibold text-gray-700">Ingredient</th>
-                                    <th class="text-right py-2 px-3 font-semibold text-gray-700">Quantity</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200">
-                                {% for item in product.recipe.ingredients.all %}
-                                <tr>
-                                    <td class="py-2 px-3">{{ item.ingredient.name }}</td>
-                                    <td class="py-2 px-3 text-right">{{ item.quantity }} {{ item.ingredient.unit }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-6">
-                        <span class="material-icons text-5xl mb-2 block">assignment</span>
-                        <p class="text-gray-600 mb-4">No recipe defined yet</p>
-                        <a href="{% url 'products:recipe_edit' product.id %}" class="text-fjc-blue-600 hover:text-fjc-blue-700 font-medium">
-                            Create Recipe
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
 
             <!-- Actions -->
             <div class="flex space-x-3 pt-4">

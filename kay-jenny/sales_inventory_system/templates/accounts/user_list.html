@@ -232,8 +232,6 @@ function renderStaffList(users) {
                         <a href="/accounts/users/${user.id}/audit/" class="text-fjc-blue-600 hover:text-fjc-blue-900 font-semibold flex items-center gap-1">
                             <span class="material-icons text-base">assignment</span> Audit
                         </a>
-                        <button onclick="confirmArchive(${user.id}, '${user.username}')" class="${user.is_archived ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'} font-semibold flex items-center gap-1">
-                            ${user.is_archived ? '<span class="material-icons text-base">restore</span> Restore' : '<span class="material-icons text-base">archive</span> Archive'}
                         </button>
                     </div>
                 </td>
@@ -296,8 +294,6 @@ function renderStaffList(users) {
                     <a href="/accounts/users/${user.id}/audit/" class="flex-1 text-center bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm flex items-center justify-center gap-1">
                         <span class="material-icons text-base">assignment</span> Audit
                     </a>
-                    <button onclick="confirmArchive(${user.id}, '${user.username}')" class="flex-1 ${user.is_archived ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} text-white font-medium py-2 px-4 rounded-lg transition text-sm flex items-center justify-center gap-1">
-                        ${user.is_archived ? '<span class="material-icons text-base">restore</span> Restore' : '<span class="material-icons text-base">archive</span> Archive'}
                     </button>
                 </div>
             </div>
@@ -370,24 +366,6 @@ function updateStats(users) {
 }
 
 // Confirm archive
-function confirmArchive(userId, username) {
-    Confirm.show({
-        title: 'Archive User',
-        message: `Are you sure you want to archive ${username}? They will no longer be able to log in.`,
-        confirmText: 'Archive',
-        cancelText: 'Cancel',
-        type: 'danger',
-        onConfirm: () => {
-            Loading.show();
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/accounts/users/${userId}/archive/`;
-            form.innerHTML = `<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">`;
-            document.body.appendChild(form);
-            form.submit();
-        }
-    });
-}
 
 // Event listeners
 searchInput.addEventListener('input', debounce(() => loadStaff(), 500));
