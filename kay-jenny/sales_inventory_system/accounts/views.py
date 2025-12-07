@@ -238,6 +238,7 @@ def user_archive(request, pk):
         messages.error(request, 'You cannot archive yourself!')
         return redirect('accounts:user_list')
 
+    user._audit_action = 'ARCHIVE'  # Mark for audit logging
     user.is_archived = True
     user.save()
 
@@ -250,6 +251,7 @@ def user_unarchive(request, pk):
     """Restore an archived user/staff member"""
     user = get_object_or_404(User, pk=pk, is_archived=True)
 
+    user._audit_action = 'RESTORE'  # Mark for audit logging
     user.is_archived = False
     user.save()
 

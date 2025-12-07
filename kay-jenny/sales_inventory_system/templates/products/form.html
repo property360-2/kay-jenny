@@ -489,14 +489,41 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function clearError(input, errorEl) {
-        input.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+        input.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500', 'border-yellow-500', 'focus:border-yellow-500', 'focus:ring-yellow-500');
         input.classList.add('border-gray-300', 'focus:border-fjc-blue-500', 'focus:ring-fjc-blue-500');
         errorEl.textContent = '';
         errorEl.classList.add('hidden');
     }
 
     // Add event listeners for real-time validation
-    nameInput.addEventListener('blur', validateName);
+    nameInput.addEventListener('blur', async function() {
+        if (!validateName()) return;
+
+        // Check for duplicate product names
+        const name = nameInput.value.trim();
+        const productId = '{{ product.id|default:"" }}';
+        const errorEl = document.getElementById('name-error');
+
+        try {
+            const params = new URLSearchParams({ name: name, product_id: productId });
+            const response = await fetch(`/products/api/check-product-name/?${params.toString()}`);
+            const data = await response.json();
+
+            if (data.exists) {
+                showError(
+                    nameInput,
+                    errorEl,
+                    `⚠️ Warning: "${data.duplicate_name}" already exists in ${data.category}. Please verify this is not a duplicate.`
+                );
+                nameInput.classList.remove('border-red-500');
+                nameInput.classList.add('border-yellow-500', 'focus:border-yellow-500', 'focus:ring-yellow-500');
+            } else {
+                clearError(nameInput, errorEl);
+            }
+        } catch (error) {
+            console.error('Error checking product name:', error);
+        }
+    });
     nameInput.addEventListener('input', function() {
         if (nameInput.value.trim()) {
             validateName();

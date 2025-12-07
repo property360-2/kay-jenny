@@ -36,6 +36,7 @@ urlpatterns = [
     path('cashier/inventory/', cashier_views.cashier_inventory_overview, name='cashier_inventory'),
 
     # API routes
+    path('api/check-product-name/', views.api_check_product_name, name='api_check_product_name'),
     path('api/ingredients/', views.api_list_ingredients, name='api_list_ingredients'),
     path('api/ingredients/create/', views.api_create_ingredient, name='api_create_ingredient'),
     path('api/ingredient-availability/', bom_views.api_ingredient_availability, name='api_ingredient_availability'),

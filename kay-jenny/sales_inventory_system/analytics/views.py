@@ -10,7 +10,7 @@ from datetime import timedelta, datetime
 from decimal import Decimal
 from sales_inventory_system.orders.models import Order, Payment, OrderItem
 from sales_inventory_system.products.models import Product
-from .forecasting import forecast_sales
+from .forecasting import forecast_sales, forecast_ingredient_stock
 
 
 def is_admin(user):
@@ -301,17 +301,39 @@ def sales_data_api(request):
 @login_required
 @user_passes_test(is_admin)
 def sales_forecast(request):
-    """Display sales forecasting using Holt-Winters Exponential Smoothing"""
+    """Display sales forecasting with ingredient forecasting"""
+
+    # Dropdown options for historical window
+    HISTORICAL_OPTIONS = [
+        (7, '7 days'),
+        (14, '14 days'),
+        (30, '1 month (30 days)'),
+        (60, '2 months (60 days)'),
+        (90, '3 months (90 days)'),
+    ]
+
+    # Dropdown options for forecast period
+    FORECAST_OPTIONS = [
+        (7, '7 days'),
+        (14, '14 days'),
+        (30, '1 month (30 days)'),
+        (90, '3 months (90 days)'),
+    ]
 
     # Get parameters from request (with defaults)
     days_back = int(request.GET.get('days_back', 30))
     days_ahead = int(request.GET.get('days_ahead', 7))
 
-    # Validate parameters
-    days_back = max(7, min(days_back, 90))  # Between 7 and 90 days
-    days_ahead = max(1, min(days_ahead, 30))  # Between 1 and 30 days
+    # Validate against allowed options
+    valid_historical = [opt[0] for opt in HISTORICAL_OPTIONS]
+    valid_forecast = [opt[0] for opt in FORECAST_OPTIONS]
 
-    # Check cache first (expensive operation)
+    if days_back not in valid_historical:
+        days_back = 30  # Default
+    if days_ahead not in valid_forecast:
+        days_ahead = 7  # Default
+
+    # Sales forecast (existing)
     cache_key = f'forecast_{days_back}_{days_ahead}'
     forecast_result = cache.get(cache_key)
 
@@ -321,10 +343,21 @@ def sales_forecast(request):
         # Cache for 30 minutes
         cache.set(cache_key, forecast_result, 1800)
 
+    # Ingredient forecast (new)
+    ingredient_cache_key = f'ingredient_forecast_{days_ahead}'
+    ingredient_forecast_result = cache.get(ingredient_cache_key)
+
+    if ingredient_forecast_result is None:
+        ingredient_forecast_result = forecast_ingredient_stock(days_ahead=days_ahead)
+        cache.set(ingredient_cache_key, ingredient_forecast_result, 1800)
+
     context = {
         'forecast_result': forecast_result,
+        'ingredient_forecast': ingredient_forecast_result,
         'days_back': days_back,
         'days_ahead': days_ahead,
+        'historical_options': HISTORICAL_OPTIONS,
+        'forecast_options': FORECAST_OPTIONS,
     }
 
     return render(request, 'analytics/forecast.html', context)

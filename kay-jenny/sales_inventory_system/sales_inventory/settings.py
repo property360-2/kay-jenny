@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     "sales_inventory_system.products",
     "sales_inventory_system.orders",
     "sales_inventory_system.analytics",
+    "sales_inventory_system.system",
 ]
 
 MIDDLEWARE = [
@@ -88,6 +89,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "sales_inventory_system.system.middleware.AuditMiddleware",
 ]
 
 ROOT_URLCONF = "sales_inventory_system.sales_inventory.urls"

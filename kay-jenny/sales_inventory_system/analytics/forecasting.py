@@ -285,3 +285,128 @@ def forecast_sales(days_back=30, days_ahead=7):
         ]
 
     return forecast_result
+
+
+def forecast_ingredient_stock(days_ahead=7):
+    """
+    Forecast ingredient stock levels and predict low stock situations
+
+    Algorithm:
+    1. Get all active ingredients
+    2. Calculate daily usage rate from StockTransaction DEDUCTION history (30 days)
+    3. Project current stock forward based on usage rate
+    4. Identify when stock will fall below min_stock threshold
+
+    Returns:
+        dict: Ingredient forecasts with low stock warnings
+    """
+    from sales_inventory_system.products.models import Ingredient, StockTransaction
+    from django.utils import timezone
+    from datetime import timedelta
+
+    try:
+        ingredients = Ingredient.objects.filter(is_active=True)
+        start_date = timezone.now() - timedelta(days=30)
+
+        forecasts = []
+        low_stock_warnings = []
+
+        for ingredient in ingredients:
+            # Get DEDUCTION transactions in last 30 days
+            deductions = StockTransaction.objects.filter(
+                ingredient=ingredient,
+                transaction_type='DEDUCTION',
+                created_at__gte=start_date
+            ).values_list('quantity', 'created_at')
+
+            if not deductions:
+                daily_usage_rate = 0
+            else:
+                total_deducted = sum(abs(float(qty)) for qty, _ in deductions)
+                dates = [created_at.date() for _, created_at in deductions]
+                if dates:
+                    days_span = (max(dates) - min(dates)).days + 1
+                    days_span = max(days_span, 1)
+                else:
+                    days_span = 30
+
+                daily_usage_rate = total_deducted / days_span
+
+            current_stock = float(ingredient.current_stock)
+            min_stock = float(ingredient.min_stock)
+
+            # Project stock levels
+            projected_stock = []
+            days_until_low_stock = None
+            days_until_depleted = None
+
+            for day in range(days_ahead + 1):
+                projected = current_stock - (daily_usage_rate * day)
+                projected_stock.append({
+                    'day': day,
+                    'stock': max(0, projected),
+                    'below_minimum': projected < min_stock,
+                    'depleted': projected <= 0
+                })
+
+                if days_until_low_stock is None and projected < min_stock:
+                    days_until_low_stock = day
+
+                if days_until_depleted is None and projected <= 0:
+                    days_until_depleted = day
+
+            # Determine status
+            if days_until_depleted is not None and days_until_depleted <= days_ahead:
+                status = 'critical'
+                message = f'Will be depleted in {days_until_depleted} days'
+                low_stock_warnings.append({
+                    'ingredient': ingredient,
+                    'days_until_critical': days_until_depleted,
+                    'severity': 'critical',
+                    'message': message
+                })
+            elif days_until_low_stock is not None and days_until_low_stock <= days_ahead:
+                status = 'warning'
+                message = f'Will fall below minimum in {days_until_low_stock} days'
+                low_stock_warnings.append({
+                    'ingredient': ingredient,
+                    'days_until_critical': days_until_low_stock,
+                    'severity': 'warning',
+                    'message': message
+                })
+            elif current_stock < min_stock:
+                status = 'low'
+                message = 'Already below minimum stock level'
+            else:
+                status = 'ok'
+                message = 'Stock levels healthy'
+
+            forecasts.append({
+                'ingredient': ingredient,
+                'current_stock': current_stock,
+                'min_stock': min_stock,
+                'daily_usage_rate': round(daily_usage_rate, 2),
+                'projected_stock': projected_stock,
+                'status': status,
+                'message': message,
+                'days_until_low_stock': days_until_low_stock,
+                'days_until_depleted': days_until_depleted,
+            })
+
+        low_stock_warnings.sort(key=lambda x: x['days_until_critical'])
+
+        return {
+            'success': True,
+            'forecasts': forecasts,
+            'low_stock_warnings': low_stock_warnings[:10],
+            'total_ingredients': len(forecasts),
+            'critical_count': sum(1 for f in forecasts if f['status'] == 'critical'),
+            'warning_count': sum(1 for f in forecasts if f['status'] == 'warning'),
+        }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'message': 'Unable to generate ingredient forecast'
+        }

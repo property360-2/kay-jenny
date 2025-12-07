@@ -43,14 +43,26 @@
         <div class="mt-6 pt-6 border-t border-fjc-blue-100">
             <form method="GET" class="flex flex-wrap items-end gap-4">
                 <div>
-                    <label for="days_back" class="block text-sm font-medium text-fjc-blue-800 mb-1">Historical Days (7-90)</label>
-                    <input type="number" id="days_back" name="days_back" value="{{ days_back }}" min="7" max="90"
-                           class="w-32 px-3 py-2 border border-fjc-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-600">
+                    <label for="days_back" class="block text-sm font-medium text-fjc-blue-800 mb-1">Historical Window</label>
+                    <select id="days_back" name="days_back"
+                            class="w-48 px-3 py-2 border border-fjc-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-600">
+                        {% for value, label in historical_options %}
+                        <option value="{{ value }}" {% if value == days_back %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div>
-                    <label for="days_ahead" class="block text-sm font-medium text-fjc-blue-800 mb-1">Forecast Days (1-30)</label>
-                    <input type="number" id="days_ahead" name="days_ahead" value="{{ days_ahead }}" min="1" max="30"
-                           class="w-32 px-3 py-2 border border-fjc-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-600">
+                    <label for="days_ahead" class="block text-sm font-medium text-fjc-blue-800 mb-1">Forecast Period</label>
+                    <select id="days_ahead" name="days_ahead"
+                            class="w-48 px-3 py-2 border border-fjc-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-600">
+                        {% for value, label in forecast_options %}
+                        <option value="{{ value }}" {% if value == days_ahead %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <button type="submit" class="bg-fjc-blue-700 hover:bg-fjc-blue-800 text-white font-semibold py-2 px-6 rounded-lg shadow transition border border-fjc-blue-800">
                     Update Forecast
@@ -132,6 +144,90 @@
             </table>
         </div>
     </div>
+
+    <!-- Ingredient Stock Forecast Section -->
+    {% if ingredient_forecast.success %}
+    <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 overflow-hidden mt-6">
+        <div class="px-6 py-4 border-b border-fjc-blue-200 bg-fjc-yellow-50">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-semibold text-fjc-blue-800">Ingredient Stock Forecast</h2>
+                    <p class="text-sm text-gray-600 mt-1">Projected {{ days_ahead }}-day ingredient levels based on usage patterns</p>
+                </div>
+                <div class="flex gap-4 text-sm">
+                    <div class="text-center">
+                        <p class="text-gray-600">Critical</p>
+                        <p class="text-2xl font-bold text-red-600">{{ ingredient_forecast.critical_count }}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-gray-600">Warning</p>
+                        <p class="text-2xl font-bold text-yellow-600">{{ ingredient_forecast.warning_count }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if ingredient_forecast.low_stock_warnings %}
+        <div class="px-6 py-4 bg-yellow-50 border-b border-yellow-200">
+            <h3 class="text-sm font-semibold text-gray-800 mb-3">⚠️ Urgent Stock Warnings</h3>
+            <div class="space-y-2">
+                {% for warning in ingredient_forecast.low_stock_warnings %}
+                <div class="flex items-center justify-between p-3 bg-white rounded-lg border {% if warning.severity == 'critical' %}border-red-300{% else %}border-yellow-300{% endif %}">
+                    <div class="flex-1">
+                        <p class="font-semibold text-gray-900">{{ warning.ingredient.name }}</p>
+                        <p class="text-sm text-gray-600">{{ warning.message }}</p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold {% if warning.severity == 'critical' %}bg-red-100 text-red-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                        {{ warning.days_until_critical }} days
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-fjc-yellow-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-fjc-blue-800 uppercase">Ingredient</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-fjc-blue-800 uppercase">Current</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-fjc-blue-800 uppercase">Minimum</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-fjc-blue-800 uppercase">Daily Usage</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-fjc-blue-800 uppercase">Projected ({{ days_ahead }}d)</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-fjc-blue-800 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for forecast in ingredient_forecast.forecasts %}
+                    <tr class="hover:bg-fjc-yellow-50">
+                        <td class="px-6 py-4 text-sm font-medium text-fjc-blue-800">
+                            {{ forecast.ingredient.name }} <span class="text-xs text-gray-500">({{ forecast.ingredient.unit }})</span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-right font-semibold">{{ forecast.current_stock|floatformat:1 }}</td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-600">{{ forecast.min_stock|floatformat:1 }}</td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-600">{{ forecast.daily_usage_rate|floatformat:2 }}</td>
+                        <td class="px-6 py-4 text-sm text-right font-semibold {% if forecast.projected_stock|last|get_item:'depleted' %}text-red-600{% elif forecast.projected_stock|last|get_item:'below_minimum' %}text-yellow-600{% else %}text-green-600{% endif %}">
+                            {{ forecast.projected_stock|last|get_item:'stock'|floatformat:1 }}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if forecast.status == 'critical' %}
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Critical</span>
+                            {% elif forecast.status == 'warning' %}
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Warning</span>
+                            {% elif forecast.status == 'low' %}
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Low</span>
+                            {% else %}
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 
     {% else %}
     <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg">

@@ -309,11 +309,47 @@ def product_edit(request, pk):
     context = {'product': product, 'action': 'Edit'}
     return render(request, 'products/form.html', context)
 
+
+@login_required
+@user_passes_test(is_admin)
+def api_check_product_name(request):
+    """API endpoint to check for duplicate product names"""
+    name = request.GET.get('name', '').strip()
+    product_id = request.GET.get('product_id', None)
+
+    if not name:
+        return JsonResponse({'exists': False})
+
+    # Check for duplicates (case-insensitive, excluding archived)
+    query = Product.objects.filter(name__iexact=name, is_archived=False)
+
+    # Exclude current product if editing
+    if product_id:
+        try:
+            query = query.exclude(pk=int(product_id))
+        except (ValueError, TypeError):
+            pass  # Invalid product_id, ignore
+
+    exists = query.exists()
+
+    if exists:
+        duplicate = query.first()
+        return JsonResponse({
+            'exists': True,
+            'duplicate_name': duplicate.name,
+            'duplicate_id': duplicate.id,
+            'category': duplicate.category or 'Uncategorized'
+        })
+
+    return JsonResponse({'exists': False})
+
+
 @login_required
 @user_passes_test(is_admin)
 def product_archive(request, pk):
     """Archive a product"""
     product = get_object_or_404(Product, pk=pk)
+    product._audit_action = 'ARCHIVE'  # Mark for audit logging
     product.is_archived = True
     product.save()
 
@@ -422,6 +458,7 @@ def archived_products_list(request):
 def product_unarchive(request, pk):
     """Restore an archived product"""
     product = get_object_or_404(Product, pk=pk, is_archived=True)
+    product._audit_action = 'RESTORE'  # Mark for audit logging
     product.is_archived = False
     product.save()
 

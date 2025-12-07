@@ -267,6 +267,9 @@
                     <a href="{% url 'accounts:user_list' %}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-fjc-blue-800 hover:bg-fjc-yellow-100 hover:text-fjc-blue-800 transition">
                         <span>Staff</span>
                     </a>
+                    <a href="{% url 'system:audit_trail' %}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-fjc-blue-800 hover:bg-fjc-yellow-100 hover:text-fjc-blue-800 transition">
+                        <span>Audit Trail</span>
+                    </a>
                     {% elif user.is_cashier %}
                     <a href="{% url 'products:cashier_inventory' %}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-fjc-blue-800 hover:bg-fjc-yellow-100 hover:text-fjc-blue-800 transition">
                         <span>Inventory Overview</span>

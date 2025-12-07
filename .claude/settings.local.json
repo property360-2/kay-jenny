@@ -12,7 +12,10 @@
       "Bash(dir:*)",
       "Bash(cat:*)",
       "Bash(tree:*)",
-      "Bash(timeout 180 python manage.py:*)"
+      "Bash(timeout 180 python manage.py:*)",
+      "Bash(ls:*)",
+      "Bash(timeout 10 bash:*)",
+      "Bash(timeout 180 python:*)"
     ],
     "deny": [],
     "ask": []
