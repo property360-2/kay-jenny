@@ -7,7 +7,7 @@ from django.utils import timezone
 class Product(models.Model):
     """Product model for inventory management"""
 
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, unique=True)
     description = models.TextField(blank=True)
     price = models.DecimalField(
         max_digits=10,

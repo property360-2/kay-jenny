@@ -4,6 +4,9 @@
 {% block title %}Ingredients - Cafe Kantina{% endblock %}
 
 {% block content %}
+<!-- Hidden CSRF token for JavaScript forms -->
+<form id="csrf-form" style="display:none;">{% csrf_token %}</form>
+
 <div class="space-y-6">
     <!-- Header -->
     <div class="flex justify-between items-center">
