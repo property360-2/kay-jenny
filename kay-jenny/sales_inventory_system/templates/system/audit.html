@@ -11,7 +11,8 @@
             <p class="mt-1 text-sm text-gray-600">Track all system and user activities</p>
         </div>
         <div class="flex items-center gap-2">
-            <a href="#" class="inline-flex items-center gap-2 bg-fjc-blue-700 hover:bg-fjc-blue-800 text-white font-semibold py-2 px-4 rounded-lg shadow transition border border-fjc-blue-800" style="background-color:#3F3522;color:#fff;">
+            <a href="{% url 'system:audit_trail_export' %}?user={{ user_filter }}&action={{ action_filter }}&model={{ model_filter }}&date_range={{ date_range }}" 
+   id="export-btn" class="inline-flex items-center gap-2 bg-fjc-blue-700 hover:bg-fjc-blue-800 text-white font-semibold py-2 px-4 rounded-lg shadow transition border border-fjc-blue-800" style="background-color:#3F3522;color:#fff;">
                 <span class="material-icons text-sm">download</span>
                 <span>Export Report</span>
             </a>
@@ -392,6 +393,10 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchData(filters);
         }
     });
+    document.getElementById('export-btn').addEventListener('click', () => {
+    const params = new URLSearchParams(currentFilters);
+    window.location.href = `/system/audit-trail/export/?${params.toString()}`;
+});
 
     // Initialize pagination listeners
     setupPaginationListeners();

@@ -105,6 +105,60 @@ def system_audit_trail(request):
 
     return render(request, 'system/audit.html', context)
 
+import csv
+from django.http import HttpResponse
+
+@login_required
+@user_passes_test(is_admin)
+def export_audit_trail(request):
+    user_filter = request.GET.get('user', '')
+    action_filter = request.GET.get('action', '')
+    model_filter = request.GET.get('model', '')
+    date_range = request.GET.get('date_range', '30')
+
+    audit_logs = AuditLog.objects.select_related('user').all()
+
+    if user_filter:
+        audit_logs = audit_logs.filter(user_id=user_filter)
+
+    if action_filter:
+        audit_logs = audit_logs.filter(action=action_filter)
+
+    if model_filter:
+        audit_logs = audit_logs.filter(model_name=model_filter)
+
+    if date_range != 'all':
+        try:
+            days = int(date_range)
+            start_date = timezone.now() - timedelta(days=days)
+            audit_logs = audit_logs.filter(created_at__gte=start_date)
+        except:
+            pass
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="audit_trail.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Timestamp',
+        'User',
+        'Action',
+        'Model',
+        'Record ID',
+        'Description'
+    ])
+
+    for log in audit_logs:
+        writer.writerow([
+            log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            log.user.username if log.user else 'System',
+            log.action,
+            log.model_name,
+            log.record_id,
+            log.description
+        ])
+
+    return response
 
 @login_required
 @user_passes_test(is_admin)
