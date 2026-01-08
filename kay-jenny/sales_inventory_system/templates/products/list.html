@@ -183,8 +183,44 @@ function debounce(func, wait) {
     };
 }
 
+// URL synchronization helper
+function updateUrl(params) {
+    const searchParams = new URLSearchParams();
+    if (params.search) searchParams.set('search', params.search);
+    if (params.category) searchParams.set('category', params.category);
+    if (params.stock_status) searchParams.set('stock_status', params.stock_status);
+    if (params.page && params.page > 1) searchParams.set('page', params.page);
+
+    const newUrl = searchParams.toString()
+        ? `${window.location.pathname}?${searchParams.toString()}`
+        : window.location.pathname;
+    history.pushState({ filters: params }, '', newUrl);
+}
+
+// Get filters from URL
+function getFiltersFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        search: params.get('search') || '',
+        category: params.get('category') || '',
+        stock_status: params.get('stock_status') || '',
+        page: parseInt(params.get('page')) || 1
+    };
+}
+
+// Restore filters from state
+function restoreFiltersFromState(filters) {
+    const searchInput = document.getElementById('search-input');
+    const categoryFilter = document.getElementById('category-filter');
+    const stockFilter = document.getElementById('stock-filter');
+
+    if (searchInput) searchInput.value = filters.search || '';
+    if (categoryFilter) categoryFilter.value = filters.category || '';
+    if (stockFilter) stockFilter.value = filters.stock_status || '';
+}
+
 // Load products with filters
-async function loadProducts(page = 1) {
+async function loadProducts(page = 1, skipUrlUpdate = false) {
     const searchInput = document.getElementById('search-input');
     const categoryFilter = document.getElementById('category-filter');
     const stockFilter = document.getElementById('stock-filter');
@@ -215,6 +251,16 @@ async function loadProducts(page = 1) {
             renderProducts(data.products, data.pagination);
             updateResultsCount(data.pagination.total_count);
             updateClearButton();
+
+            // Update URL (unless triggered by popstate)
+            if (!skipUrlUpdate) {
+                updateUrl({
+                    search: searchInput.value,
+                    category: categoryFilter.value,
+                    stock_status: stockFilter.value,
+                    page: page
+                });
+            }
         } else {
             Toast.error('Failed to load products');
         }
@@ -352,7 +398,11 @@ function clearAllFilters() {
     document.getElementById('search-input').value = '';
     document.getElementById('category-filter').value = '';
     document.getElementById('stock-filter').value = '';
-    loadProducts(1);
+
+    // Clear URL parameters
+    history.pushState({ filters: {} }, '', window.location.pathname);
+
+    loadProducts(1, true);  // Skip URL update since we just cleared it
 }
 
 // Delete product with confirmation
@@ -364,6 +414,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const stockFilter = document.getElementById('stock-filter');
     const clearBtn = document.getElementById('clear-filters-btn');
     const clearAllBtn = document.getElementById('clear-all-btn');
+
+    // Handle browser back/forward navigation
+    window.addEventListener('popstate', function(event) {
+        if (event.state && event.state.filters) {
+            restoreFiltersFromState(event.state.filters);
+            loadProducts(event.state.filters.page || 1, true);
+        } else {
+            // No state - restore from URL
+            const filters = getFiltersFromUrl();
+            restoreFiltersFromState(filters);
+            loadProducts(filters.page || 1, true);
+        }
+    });
+
+    // Set initial history state
+    const initialFilters = getFiltersFromUrl();
+    history.replaceState({ filters: initialFilters }, '', window.location.href);
 
     // Search with debounce
     searchInput.addEventListener('input', debounce(() => loadProducts(1), 500));

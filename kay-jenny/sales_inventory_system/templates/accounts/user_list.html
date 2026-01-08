@@ -115,8 +115,37 @@ const mobileView = document.getElementById('mobileView');
 const staffTableBody = document.getElementById('staffTableBody');
 const paginationContainer = document.getElementById('paginationContainer');
 
+// URL synchronization helper
+function updateUrl(params) {
+    const searchParams = new URLSearchParams();
+    if (params.search) searchParams.set('search', params.search);
+    if (params.role) searchParams.set('role', params.role);
+    if (params.page && params.page > 1) searchParams.set('page', params.page);
+
+    const newUrl = searchParams.toString()
+        ? `${window.location.pathname}?${searchParams.toString()}`
+        : window.location.pathname;
+    history.pushState({ filters: params }, '', newUrl);
+}
+
+// Get filters from URL
+function getFiltersFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        search: params.get('search') || '',
+        role: params.get('role') || '',
+        page: parseInt(params.get('page')) || 1
+    };
+}
+
+// Restore filters from state
+function restoreFiltersFromState(filters) {
+    if (searchInput) searchInput.value = filters.search || '';
+    if (roleSelect) roleSelect.value = filters.role || '';
+}
+
 // Load staff function
-function loadStaff(page = 1) {
+function loadStaff(page = 1, skipUrlUpdate = false) {
     const searchQuery = searchInput.value.trim();
     const roleFilter = roleSelect.value;
 
@@ -140,6 +169,15 @@ function loadStaff(page = 1) {
             renderPagination(data.pagination);
             populateRoleFilter(data.available_roles);
             updateStats(data.users);
+
+            // Update URL (unless triggered by popstate)
+            if (!skipUrlUpdate) {
+                updateUrl({
+                    search: searchQuery,
+                    role: roleFilter,
+                    page: page
+                });
+            }
         } else {
             console.error('API returned error:', data);
             Toast.error('Failed to load staff data');
@@ -367,11 +405,27 @@ function updateStats(users) {
 
 // Confirm archive
 
+// Handle browser back/forward navigation
+window.addEventListener('popstate', function(event) {
+    if (event.state && event.state.filters) {
+        restoreFiltersFromState(event.state.filters);
+        loadStaff(event.state.filters.page || 1, true);
+    } else {
+        // No state - restore from URL
+        const filters = getFiltersFromUrl();
+        restoreFiltersFromState(filters);
+        loadStaff(filters.page || 1, true);
+    }
+});
+
 // Event listeners
 searchInput.addEventListener('input', debounce(() => loadStaff(), 500));
 roleSelect.addEventListener('change', () => loadStaff());
 
-// Load staff on page load
-loadStaff();
+// Initialize from URL on page load
+const initialFilters = getFiltersFromUrl();
+restoreFiltersFromState(initialFilters);
+history.replaceState({ filters: initialFilters }, '', window.location.href);
+loadStaff(initialFilters.page || 1, true);
 </script>
 {% endblock %}

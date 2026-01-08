@@ -515,6 +515,380 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
+ * URL Helper - Utilities for URL parameter management
+ * Usage:
+ *   UrlHelper.getFiltersFromUrl()
+ *   UrlHelper.updateUrl(params)
+ *   UrlHelper.restoreFilters(filterConfig)
+ */
+const UrlHelper = {
+    // Get current filter state from URL as object
+    getFiltersFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return Object.fromEntries(params.entries());
+    },
+
+    // Update URL without page reload
+    updateUrl(params) {
+        const searchParams = params instanceof URLSearchParams ? params : new URLSearchParams(params);
+        // Remove empty params
+        for (const [key, value] of [...searchParams.entries()]) {
+            if (!value) searchParams.delete(key);
+        }
+        const newUrl = searchParams.toString()
+            ? `${window.location.pathname}?${searchParams.toString()}`
+            : window.location.pathname;
+        history.pushState({ filters: searchParams.toString() }, '', newUrl);
+    },
+
+    // Restore filter inputs from URL state
+    restoreFilters(filterConfig) {
+        const params = this.getFiltersFromUrl();
+        filterConfig.forEach(config => {
+            const element = document.querySelector(config.selector);
+            if (element && params[config.param] !== undefined) {
+                if (element.type === 'checkbox') {
+                    element.checked = params[config.param] === 'true';
+                } else {
+                    element.value = params[config.param];
+                }
+            }
+        });
+    },
+
+    // Build URLSearchParams from filter config
+    buildParams(filterConfig) {
+        const params = new URLSearchParams();
+        filterConfig.forEach(config => {
+            const element = document.querySelector(config.selector);
+            if (element) {
+                const value = element.type === 'checkbox' ? element.checked : element.value;
+                if (value) {
+                    params.set(config.param, value);
+                }
+            }
+        });
+        return params;
+    }
+};
+
+/**
+ * AsyncFilterHandler - Reusable async filtering with URL sync, debounce, and loading states
+ * Usage:
+ *   const filter = new AsyncFilterHandler({
+ *       url: '/api/items/',
+ *       filterInputs: [
+ *           { selector: '#search-input', param: 'search', debounce: true },
+ *           { selector: '#status-filter', param: 'status' },
+ *           { selector: '#category-filter', param: 'category' }
+ *       ],
+ *       buttonFilters: [
+ *           { selector: '.time-filter-btn', param: 'days', activeClass: 'bg-blue-600 text-white' }
+ *       ],
+ *       resultsContainer: '#results-container',
+ *       loadingContainer: '#loading-indicator',
+ *       renderResults: (data) => { return html; },
+ *       onSuccess: (data) => { },
+ *       updateUrl: true,
+ *       debounceDelay: 500
+ *   });
+ *   filter.init();
+ */
+class AsyncFilterHandler {
+    constructor(options) {
+        this.options = {
+            url: window.location.pathname,
+            filterInputs: [],
+            buttonFilters: [],
+            resultsContainer: null,
+            loadingContainer: null,
+            summaryContainers: {},
+            paginationContainer: null,
+            renderResults: null,
+            renderPagination: null,
+            onSuccess: null,
+            onError: null,
+            updateUrl: true,
+            debounceDelay: 500,
+            minSearchLength: 0,
+            ...options
+        };
+
+        this.debounceTimers = {};
+        this.currentPage = 1;
+        this.isLoading = false;
+    }
+
+    init() {
+        this._setupInputFilters();
+        this._setupButtonFilters();
+        this._setupPagination();
+        this._setupPopState();
+        this._restoreFromUrl();
+    }
+
+    _setupInputFilters() {
+        this.options.filterInputs.forEach(config => {
+            const element = document.querySelector(config.selector);
+            if (!element) return;
+
+            const eventType = element.tagName === 'SELECT' ? 'change' : 'input';
+            const shouldDebounce = config.debounce !== false && element.tagName !== 'SELECT';
+
+            element.addEventListener(eventType, (e) => {
+                if (shouldDebounce) {
+                    this._debounce(config.selector, () => this._triggerFilter(), this.options.debounceDelay);
+                } else {
+                    this._triggerFilter();
+                }
+            });
+        });
+    }
+
+    _setupButtonFilters() {
+        this.options.buttonFilters.forEach(config => {
+            const buttons = document.querySelectorAll(config.selector);
+            buttons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+
+                    // Update active state
+                    buttons.forEach(b => {
+                        b.classList.remove(...(config.activeClass || 'bg-blue-600 text-white').split(' '));
+                        b.classList.add(...(config.inactiveClass || 'bg-gray-100 text-gray-700').split(' '));
+                    });
+                    btn.classList.remove(...(config.inactiveClass || 'bg-gray-100 text-gray-700').split(' '));
+                    btn.classList.add(...(config.activeClass || 'bg-blue-600 text-white').split(' '));
+
+                    // Store the value
+                    btn.dataset.selected = 'true';
+                    this._triggerFilter();
+                });
+            });
+        });
+    }
+
+    _setupPagination() {
+        if (!this.options.paginationContainer) return;
+
+        const container = document.querySelector(this.options.paginationContainer);
+        if (!container) return;
+
+        container.addEventListener('click', (e) => {
+            const pageBtn = e.target.closest('[data-page]');
+            if (!pageBtn || pageBtn.disabled) return;
+
+            e.preventDefault();
+            this.currentPage = parseInt(pageBtn.dataset.page);
+            this._triggerFilter();
+        });
+    }
+
+    _setupPopState() {
+        window.addEventListener('popstate', (event) => {
+            this._restoreFromUrl();
+            this._triggerFilter(false); // Don't update URL on popstate
+        });
+    }
+
+    _restoreFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+
+        // Restore input filters
+        this.options.filterInputs.forEach(config => {
+            const element = document.querySelector(config.selector);
+            if (element && params.has(config.param)) {
+                element.value = params.get(config.param);
+            }
+        });
+
+        // Restore button filters
+        this.options.buttonFilters.forEach(config => {
+            const buttons = document.querySelectorAll(config.selector);
+            const value = params.get(config.param);
+
+            buttons.forEach(btn => {
+                const isActive = btn.dataset.value === value || (value === null && btn.dataset.default === 'true');
+                btn.classList.remove(...(config.activeClass || 'bg-blue-600 text-white').split(' '));
+                btn.classList.remove(...(config.inactiveClass || 'bg-gray-100 text-gray-700').split(' '));
+
+                if (isActive) {
+                    btn.classList.add(...(config.activeClass || 'bg-blue-600 text-white').split(' '));
+                    btn.dataset.selected = 'true';
+                } else {
+                    btn.classList.add(...(config.inactiveClass || 'bg-gray-100 text-gray-700').split(' '));
+                    delete btn.dataset.selected;
+                }
+            });
+        });
+
+        // Restore page
+        this.currentPage = parseInt(params.get('page')) || 1;
+    }
+
+    _debounce(key, fn, delay) {
+        clearTimeout(this.debounceTimers[key]);
+        this.debounceTimers[key] = setTimeout(fn, delay);
+    }
+
+    _buildParams() {
+        const params = new URLSearchParams();
+
+        // Input filters
+        this.options.filterInputs.forEach(config => {
+            const element = document.querySelector(config.selector);
+            if (element && element.value) {
+                params.set(config.param, element.value);
+            }
+        });
+
+        // Button filters
+        this.options.buttonFilters.forEach(config => {
+            const selectedBtn = document.querySelector(`${config.selector}[data-selected="true"]`);
+            if (selectedBtn && selectedBtn.dataset.value) {
+                params.set(config.param, selectedBtn.dataset.value);
+            }
+        });
+
+        // Page
+        if (this.currentPage > 1) {
+            params.set('page', this.currentPage);
+        }
+
+        return params;
+    }
+
+    async _triggerFilter(updateUrl = true) {
+        if (this.isLoading) return;
+
+        const params = this._buildParams();
+
+        // Update URL if enabled
+        if (updateUrl && this.options.updateUrl) {
+            UrlHelper.updateUrl(params);
+        }
+
+        await this._fetchResults(params);
+    }
+
+    async _fetchResults(params) {
+        this.isLoading = true;
+        this._showLoading();
+
+        try {
+            const url = new URL(this.options.url, window.location.origin);
+            params.forEach((value, key) => url.searchParams.set(key, value));
+
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+
+            if (data.success !== false) {
+                this._renderResults(data);
+                if (this.options.onSuccess) {
+                    this.options.onSuccess(data);
+                }
+            } else {
+                throw new Error(data.message || 'Filter failed');
+            }
+        } catch (error) {
+            console.error('Filter error:', error);
+            if (typeof Toast !== 'undefined') {
+                Toast.error('Failed to load results. Please try again.');
+            }
+            if (this.options.onError) {
+                this.options.onError(error);
+            }
+        } finally {
+            this.isLoading = false;
+            this._hideLoading();
+        }
+    }
+
+    _showLoading() {
+        if (this.options.loadingContainer) {
+            const loader = document.querySelector(this.options.loadingContainer);
+            if (loader) loader.classList.remove('hidden');
+        }
+        if (this.options.resultsContainer) {
+            const container = document.querySelector(this.options.resultsContainer);
+            if (container) container.classList.add('opacity-50', 'pointer-events-none');
+        }
+    }
+
+    _hideLoading() {
+        if (this.options.loadingContainer) {
+            const loader = document.querySelector(this.options.loadingContainer);
+            if (loader) loader.classList.add('hidden');
+        }
+        if (this.options.resultsContainer) {
+            const container = document.querySelector(this.options.resultsContainer);
+            if (container) container.classList.remove('opacity-50', 'pointer-events-none');
+        }
+    }
+
+    _renderResults(data) {
+        // Render main results
+        if (this.options.resultsContainer && this.options.renderResults) {
+            const container = document.querySelector(this.options.resultsContainer);
+            if (container) {
+                container.innerHTML = this.options.renderResults(data);
+            }
+        }
+
+        // Render summary containers
+        if (this.options.summaryContainers) {
+            Object.entries(this.options.summaryContainers).forEach(([selector, render]) => {
+                const container = document.querySelector(selector);
+                if (container && typeof render === 'function') {
+                    container.innerHTML = render(data);
+                }
+            });
+        }
+
+        // Render pagination
+        if (this.options.paginationContainer && this.options.renderPagination) {
+            const container = document.querySelector(this.options.paginationContainer);
+            if (container) {
+                container.innerHTML = this.options.renderPagination(data);
+            }
+        }
+    }
+
+    // Public method to trigger filter manually
+    refresh() {
+        this._triggerFilter();
+    }
+
+    // Public method to reset all filters
+    reset() {
+        this.options.filterInputs.forEach(config => {
+            const element = document.querySelector(config.selector);
+            if (element) element.value = '';
+        });
+
+        this.options.buttonFilters.forEach(config => {
+            const buttons = document.querySelectorAll(config.selector);
+            buttons.forEach(btn => {
+                delete btn.dataset.selected;
+                btn.classList.remove(...(config.activeClass || 'bg-blue-600 text-white').split(' '));
+                btn.classList.add(...(config.inactiveClass || 'bg-gray-100 text-gray-700').split(' '));
+            });
+        });
+
+        this.currentPage = 1;
+        this._triggerFilter();
+    }
+}
+
+/**
  * Export for use in templates
  */
 if (typeof module !== 'undefined' && module.exports) {
@@ -525,6 +899,8 @@ if (typeof module !== 'undefined' && module.exports) {
         SearchHandler,
         ModalHandler,
         PaginationHandler,
-        InlineEditHandler
+        InlineEditHandler,
+        UrlHelper,
+        AsyncFilterHandler
     };
 }

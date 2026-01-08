@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
+from django.http import JsonResponse
 from django.utils import timezone
 from datetime import timedelta
 
@@ -50,9 +51,46 @@ def system_audit_trail(request):
     models = AuditLog.objects.values_list('model_name', flat=True).distinct().order_by('model_name')
 
     # Pagination
+    total_count = audit_logs.count()
     paginator = Paginator(audit_logs, 50)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
+
+    # Handle AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        logs_data = []
+        for log in page_obj:
+            logs_data.append({
+                'id': log.id,
+                'user': log.user.username if log.user else 'System',
+                'action': log.action,
+                'model_name': log.model_name,
+                'record_id': log.record_id,
+                'description': log.description[:100] if log.description else '',
+                'created_at': log.created_at.strftime('%b %d, %g:%M %p'),
+            })
+
+        return JsonResponse({
+            'success': True,
+            'logs': logs_data,
+            'pagination': {
+                'current_page': page_obj.number,
+                'total_pages': paginator.num_pages,
+                'total_count': total_count,
+                'has_previous': page_obj.has_previous(),
+                'has_next': page_obj.has_next(),
+                'previous_page': page_obj.previous_page_number() if page_obj.has_previous() else None,
+                'next_page': page_obj.next_page_number() if page_obj.has_next() else None,
+                'start_index': page_obj.start_index(),
+                'end_index': page_obj.end_index(),
+            },
+            'filters': {
+                'user': user_filter,
+                'action': action_filter,
+                'model': model_filter,
+                'date_range': date_range,
+            }
+        })
 
     context = {
         'page_obj': page_obj,
@@ -62,7 +100,7 @@ def system_audit_trail(request):
         'action_filter': action_filter,
         'model_filter': model_filter,
         'date_range': date_range,
-        'total_count': audit_logs.count(),
+        'total_count': total_count,
     }
 
     return render(request, 'system/audit.html', context)
@@ -97,6 +135,7 @@ def user_audit_trail(request, pk):
     models = AuditLog.objects.filter(user=user).values_list('model_name', flat=True).distinct().order_by('model_name')
 
     # Pagination
+    total_count = audit_logs.count()
     paginator = Paginator(audit_logs, 50)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
@@ -111,6 +150,40 @@ def user_audit_trail(request, pk):
         'restores': AuditLog.objects.filter(user=user, action='RESTORE').count(),
     }
 
+    # Handle AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        logs_data = []
+        for log in page_obj:
+            logs_data.append({
+                'id': log.id,
+                'action': log.action,
+                'model_name': log.model_name,
+                'record_id': log.record_id,
+                'description': log.description[:100] if log.description else '',
+                'created_at': log.created_at.strftime('%b %d, %Y %I:%M %p'),
+            })
+
+        return JsonResponse({
+            'success': True,
+            'logs': logs_data,
+            'stats': stats,
+            'pagination': {
+                'current_page': page_obj.number,
+                'total_pages': paginator.num_pages,
+                'total_count': total_count,
+                'has_previous': page_obj.has_previous(),
+                'has_next': page_obj.has_next(),
+                'previous_page': page_obj.previous_page_number() if page_obj.has_previous() else None,
+                'next_page': page_obj.next_page_number() if page_obj.has_next() else None,
+                'start_index': page_obj.start_index(),
+                'end_index': page_obj.end_index(),
+            },
+            'filters': {
+                'model': model_filter,
+                'date_range': date_range,
+            }
+        })
+
     context = {
         'audit_user': user,
         'page_obj': page_obj,
@@ -118,7 +191,7 @@ def user_audit_trail(request, pk):
         'model_filter': model_filter,
         'date_range': date_range,
         'stats': stats,
-        'total_count': audit_logs.count(),
+        'total_count': total_count,
     }
 
     return render(request, 'accounts/user_audit_trail.html', context)

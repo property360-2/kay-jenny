@@ -307,6 +307,18 @@
         paginationContainer.innerHTML = mobile + desktop;
     }
 
+    // Update URL without reload
+    function updateUrl(params) {
+        const searchParams = new URLSearchParams();
+        if (params.search) searchParams.set('search', params.search);
+        if (params.category) searchParams.set('category', params.category);
+        if (params.page && params.page > 1) searchParams.set('page', params.page);
+        const newUrl = searchParams.toString()
+            ? `${window.location.pathname}?${searchParams.toString()}`
+            : window.location.pathname;
+        history.pushState({ filters: params }, '', newUrl);
+    }
+
     async function fetchArchives(page = 1) {
         const params = new URLSearchParams();
         params.set('page', page);
@@ -338,10 +350,23 @@
                     clearBtn.classList.add('hidden');
                 }
             }
+
+            // Update URL
+            updateUrl({ search: searchVal, category: categoryVal, page: page });
         } catch (err) {
             tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-sm text-red-600">Error loading archives.</td></tr>';
         }
     }
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', function(event) {
+        if (event.state && event.state.filters) {
+            const filters = event.state.filters;
+            searchInput.value = filters.search || '';
+            categorySelect.value = filters.category || '';
+            fetchArchives(filters.page || 1);
+        }
+    });
 
     let searchDebounceTimeout = null;
 

@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}Audit Trail - Cafe Kantina{% endblock %}
 
@@ -18,9 +18,17 @@
         </div>
     </div>
 
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="hidden fixed inset-0 bg-white/50 backdrop-blur-sm z-40 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-lg p-6 flex items-center gap-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-fjc-blue-600"></div>
+            <span class="text-gray-700 font-medium">Loading...</span>
+        </div>
+    </div>
+
     <!-- Filters -->
     <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-4">
-        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
                 <label for="user-filter" class="block text-sm font-medium text-fjc-blue-800 mb-2">User</label>
                 <select id="user-filter" name="user" class="w-full px-4 py-2 border border-fjc-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-600">
@@ -52,105 +60,107 @@
             </div>
             <div>
                 <label for="date-range-filter" class="block text-sm font-medium text-fjc-blue-800 mb-2">Date Range</label>
-                <select id="date-range-filter" name="date_range" class="w-full px-4 py-2 border border-fjc-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-600" onchange="this.form.submit()">
+                <select id="date-range-filter" name="date_range" class="w-full px-4 py-2 border border-fjc-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-600">
                     <option value="7" {% if date_range == '7' %}selected{% endif %}>Last 7 Days</option>
                     <option value="30" {% if date_range == '30' %}selected{% endif %}>Last 30 Days</option>
                     <option value="90" {% if date_range == '90' %}selected{% endif %}>Last 90 Days</option>
                     <option value="all" {% if date_range == 'all' %}selected{% endif %}>All Time</option>
                 </select>
             </div>
-        </form>
+        </div>
     </div>
 
     <!-- Audit Log Table -->
     <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 overflow-hidden">
         <!-- Desktop Table View (hidden on mobile) -->
-        <div id="audit-logs-table" class="hidden md:block overflow-x-auto">
-            {% if page_obj %}
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-fjc-yellow-50 border-b border-fjc-blue-100">
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-fjc-blue-800">Timestamp</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-fjc-blue-800">User</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-fjc-blue-800">Action</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-fjc-blue-800">Entity</th>
-                        <th class="px-6 py-4 text-left text-sm font-semibold text-fjc-blue-800">Description</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    {% for log in page_obj %}
-                    <tr class="hover:bg-fjc-yellow-50 transition">
-                        <td class="px-6 py-4 text-sm text-gray-600">{{ log.created_at|date:"M d, g:i A" }}</td>
-                        <td class="px-6 py-4 text-sm font-medium text-fjc-blue-800">{{ log.user.username|default:"System" }}</td>
-                        <td class="px-6 py-4">
+        <div id="audit-logs-container" class="transition-opacity">
+            <div id="audit-logs-table" class="hidden md:block overflow-x-auto">
+                {% if page_obj %}
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-fjc-yellow-50 border-b border-fjc-blue-100">
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-fjc-blue-800">Timestamp</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-fjc-blue-800">User</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-fjc-blue-800">Action</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-fjc-blue-800">Entity</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-fjc-blue-800">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-table-body" class="divide-y divide-gray-200">
+                        {% for log in page_obj %}
+                        <tr class="hover:bg-fjc-yellow-50 transition">
+                            <td class="px-6 py-4 text-sm text-gray-600">{{ log.created_at|date:"M d, g:i A" }}</td>
+                            <td class="px-6 py-4 text-sm font-medium text-fjc-blue-800">{{ log.user.username|default:"System" }}</td>
+                            <td class="px-6 py-4">
+                                <span class="inline-block px-2 py-1 rounded text-xs font-semibold {% if log.action == 'CREATE' %}bg-fjc-blue-100 text-fjc-blue-800{% elif log.action == 'UPDATE' %}bg-fjc-yellow-100 text-fjc-blue-800{% elif log.action == 'DELETE' %}bg-gray-100 text-fjc-blue-800{% elif log.action == 'ARCHIVE' %}bg-fjc-yellow-100 text-fjc-blue-800{% elif log.action == 'RESTORE' %}bg-fjc-blue-50 text-fjc-blue-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ log.action }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-600">{{ log.model_name }} #{{ log.record_id }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-600">{{ log.description|truncatewords:10 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="px-6 py-12 text-center">
+                    <p class="text-gray-600">No audit logs found</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Mobile Card View (shown only on mobile) -->
+            <div id="audit-logs-cards" class="md:hidden divide-y divide-gray-200">
+                {% if page_obj %}
+                {% for log in page_obj %}
+                <div class="p-4 hover:bg-fjc-yellow-50 transition">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-fjc-blue-800 mb-1">{{ log.user.username|default:"System" }}</p>
+                            <p class="text-xs text-gray-500">{{ log.created_at|date:"M d, Y g:i A" }}</p>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
                             <span class="inline-block px-2 py-1 rounded text-xs font-semibold {% if log.action == 'CREATE' %}bg-fjc-blue-100 text-fjc-blue-800{% elif log.action == 'UPDATE' %}bg-fjc-yellow-100 text-fjc-blue-800{% elif log.action == 'DELETE' %}bg-gray-100 text-fjc-blue-800{% elif log.action == 'ARCHIVE' %}bg-fjc-yellow-100 text-fjc-blue-800{% elif log.action == 'RESTORE' %}bg-fjc-blue-50 text-fjc-blue-800{% else %}bg-gray-100 text-gray-800{% endif %}">
                                 {{ log.action }}
                             </span>
-                        </td>
-                        <td class="px-6 py-4 text-sm text-gray-600">{{ log.model_name }} #{{ log.record_id }}</td>
-                        <td class="px-6 py-4 text-sm text-gray-600">{{ log.description|truncatewords:10 }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="px-6 py-12 text-center">
-                <p class="text-gray-600">No audit logs found</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Mobile Card View (shown only on mobile) -->
-        <div id="audit-logs-cards" class="md:hidden divide-y divide-gray-200">
-            {% if page_obj %}
-            {% for log in page_obj %}
-            <div class="p-4 hover:bg-fjc-yellow-50 transition">
-                <div class="flex justify-between items-start mb-3">
-                    <div class="flex-1">
-                        <p class="text-sm font-medium text-fjc-blue-800 mb-1">{{ log.user.username|default:"System" }}</p>
-                        <p class="text-xs text-gray-500">{{ log.created_at|date:"M d, Y g:i A" }}</p>
+                        </div>
                     </div>
-                    <div class="flex flex-col items-end gap-1">
-                        <span class="inline-block px-2 py-1 rounded text-xs font-semibold {% if log.action == 'CREATE' %}bg-fjc-blue-100 text-fjc-blue-800{% elif log.action == 'UPDATE' %}bg-fjc-yellow-100 text-fjc-blue-800{% elif log.action == 'DELETE' %}bg-gray-100 text-fjc-blue-800{% elif log.action == 'ARCHIVE' %}bg-fjc-yellow-100 text-fjc-blue-800{% elif log.action == 'RESTORE' %}bg-fjc-blue-50 text-fjc-blue-800{% else %}bg-gray-100 text-gray-800{% endif %}">
-                            {{ log.action }}
-                        </span>
+                    <div class="space-y-2 mb-3">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Entity:</span>
+                            <span class="text-fjc-blue-800">{{ log.model_name }} #{{ log.record_id }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Description:</span>
+                            <span class="text-fjc-blue-800 text-right">{{ log.description|truncatewords:6 }}</span>
+                        </div>
                     </div>
                 </div>
-                <div class="space-y-2 mb-3">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">Entity:</span>
-                        <span class="text-fjc-blue-800">{{ log.model_name }} #{{ log.record_id }}</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">Description:</span>
-                        <span class="text-fjc-blue-800 text-right">{{ log.description|truncatewords:6 }}</span>
-                    </div>
+                {% endfor %}
+                {% else %}
+                <div class="p-4 text-center">
+                    <p class="text-gray-600">No audit logs found</p>
                 </div>
+                {% endif %}
             </div>
-            {% endfor %}
-            {% else %}
-            <div class="p-4 text-center">
-                <p class="text-gray-600">No audit logs found</p>
-            </div>
-            {% endif %}
         </div>
 
         <!-- Pagination -->
-        <div class="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p class="text-sm text-gray-600">
+        <div id="pagination-container" class="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p class="text-sm text-gray-600" id="pagination-info">
                 Showing <span class="font-semibold">{{ page_obj.start_index|default:0 }}</span>
                 to <span class="font-semibold">{{ page_obj.end_index|default:0 }}</span>
                 of <span class="font-semibold">{{ total_count }}</span> audit logs
             </p>
-            <div class="flex gap-2 w-full sm:w-auto">
+            <div class="flex gap-2 w-full sm:w-auto" id="pagination-buttons">
                 {% if page_obj.has_previous %}
-                <a href="?user={{ user_filter }}&action={{ action_filter }}&model={{ model_filter }}&date_range={{ date_range }}&page={{ page_obj.previous_page_number }}" class="flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Previous</a>
+                <button data-page="{{ page_obj.previous_page_number }}" class="pagination-btn flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Previous</button>
                 {% else %}
                 <button disabled class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 text-gray-600 font-medium rounded-lg text-sm">Previous</button>
                 {% endif %}
 
                 {% if page_obj.has_next %}
-                <a href="?user={{ user_filter }}&action={{ action_filter }}&model={{ model_filter }}&date_range={{ date_range }}&page={{ page_obj.next_page_number }}" class="flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Next</a>
+                <button data-page="{{ page_obj.next_page_number }}" class="pagination-btn flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Next</button>
                 {% else %}
                 <button disabled class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 text-gray-600 font-medium rounded-lg text-sm">Next</button>
                 {% endif %}
@@ -160,17 +170,231 @@
 </div>
 
 <script>
-// Auto-submit filter form on change
 document.addEventListener('DOMContentLoaded', function() {
+    // State management
+    let currentFilters = {
+        user: '{{ user_filter }}',
+        action: '{{ action_filter }}',
+        model: '{{ model_filter }}',
+        date_range: '{{ date_range }}',
+        page: {{ page_obj.number }}
+    };
+
+    // Elements
     const userFilter = document.getElementById('user-filter');
     const actionFilter = document.getElementById('action-filter');
     const modelFilter = document.getElementById('model-filter');
-    const form = document.querySelector('form');
+    const dateRangeFilter = document.getElementById('date-range-filter');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const logsContainer = document.getElementById('audit-logs-container');
+    const paginationContainer = document.getElementById('pagination-container');
 
-    userFilter.addEventListener('change', () => form.submit());
-    actionFilter.addEventListener('change', () => form.submit());
-    modelFilter.addEventListener('change', () => form.submit());
+    // Show loading state
+    function showLoading() {
+        loadingIndicator.classList.remove('hidden');
+        logsContainer.classList.add('opacity-50');
+    }
+
+    // Hide loading state
+    function hideLoading() {
+        loadingIndicator.classList.add('hidden');
+        logsContainer.classList.remove('opacity-50');
+    }
+
+    // Update URL without reload
+    function updateUrl(params) {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value && value !== '' && key !== 'page') {
+                searchParams.set(key, value);
+            }
+        });
+        if (params.page && params.page > 1) {
+            searchParams.set('page', params.page);
+        }
+        const newUrl = searchParams.toString()
+            ? `${window.location.pathname}?${searchParams.toString()}`
+            : window.location.pathname;
+        history.pushState({ filters: params }, '', newUrl);
+    }
+
+    // Get action badge class
+    function getActionBadgeClass(action) {
+        const classes = {
+            'CREATE': 'bg-fjc-blue-100 text-fjc-blue-800',
+            'UPDATE': 'bg-fjc-yellow-100 text-fjc-blue-800',
+            'DELETE': 'bg-gray-100 text-fjc-blue-800',
+            'ARCHIVE': 'bg-fjc-yellow-100 text-fjc-blue-800',
+            'RESTORE': 'bg-fjc-blue-50 text-fjc-blue-800'
+        };
+        return classes[action] || 'bg-gray-100 text-gray-800';
+    }
+
+    // Render results
+    function renderResults(data) {
+        const tableBody = document.getElementById('audit-table-body');
+        const cardsContainer = document.getElementById('audit-logs-cards');
+
+        if (data.logs.length === 0) {
+            const emptyHtml = `
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-600">No audit logs found</td>
+                </tr>
+            `;
+            tableBody.innerHTML = emptyHtml;
+            cardsContainer.innerHTML = '<div class="p-4 text-center"><p class="text-gray-600">No audit logs found</p></div>';
+        } else {
+            // Render table rows
+            tableBody.innerHTML = data.logs.map(log => `
+                <tr class="hover:bg-fjc-yellow-50 transition">
+                    <td class="px-6 py-4 text-sm text-gray-600">${log.created_at}</td>
+                    <td class="px-6 py-4 text-sm font-medium text-fjc-blue-800">${log.user}</td>
+                    <td class="px-6 py-4">
+                        <span class="inline-block px-2 py-1 rounded text-xs font-semibold ${getActionBadgeClass(log.action)}">
+                            ${log.action}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${log.model_name} #${log.record_id}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${log.description}</td>
+                </tr>
+            `).join('');
+
+            // Render mobile cards
+            cardsContainer.innerHTML = data.logs.map(log => `
+                <div class="p-4 hover:bg-fjc-yellow-50 transition">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-fjc-blue-800 mb-1">${log.user}</p>
+                            <p class="text-xs text-gray-500">${log.created_at}</p>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="inline-block px-2 py-1 rounded text-xs font-semibold ${getActionBadgeClass(log.action)}">
+                                ${log.action}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="space-y-2 mb-3">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Entity:</span>
+                            <span class="text-fjc-blue-800">${log.model_name} #${log.record_id}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Description:</span>
+                            <span class="text-fjc-blue-800 text-right">${log.description}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update pagination info
+        const paginationInfo = document.getElementById('pagination-info');
+        paginationInfo.innerHTML = `
+            Showing <span class="font-semibold">${data.pagination.start_index || 0}</span>
+            to <span class="font-semibold">${data.pagination.end_index || 0}</span>
+            of <span class="font-semibold">${data.pagination.total_count}</span> audit logs
+        `;
+
+        // Update pagination buttons
+        const paginationButtons = document.getElementById('pagination-buttons');
+        paginationButtons.innerHTML = `
+            ${data.pagination.has_previous
+                ? `<button data-page="${data.pagination.previous_page}" class="pagination-btn flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Previous</button>`
+                : `<button disabled class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 text-gray-600 font-medium rounded-lg text-sm">Previous</button>`
+            }
+            ${data.pagination.has_next
+                ? `<button data-page="${data.pagination.next_page}" class="pagination-btn flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Next</button>`
+                : `<button disabled class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 text-gray-600 font-medium rounded-lg text-sm">Next</button>`
+            }
+        `;
+
+        // Re-attach pagination event listeners
+        setupPaginationListeners();
+    }
+
+    // Fetch filtered data
+    async function fetchData(filters) {
+        showLoading();
+
+        try {
+            const params = new URLSearchParams();
+            if (filters.user) params.set('user', filters.user);
+            if (filters.action) params.set('action', filters.action);
+            if (filters.model) params.set('model', filters.model);
+            if (filters.date_range) params.set('date_range', filters.date_range);
+            if (filters.page && filters.page > 1) params.set('page', filters.page);
+
+            const response = await fetch(`${window.location.pathname}?${params.toString()}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+
+            if (data.success) {
+                renderResults(data);
+                updateUrl(filters);
+                currentFilters = { ...filters };
+            } else {
+                throw new Error(data.message || 'Failed to load data');
+            }
+        } catch (error) {
+            console.error('Filter error:', error);
+            if (typeof Toast !== 'undefined') {
+                Toast.error('Failed to load results. Please try again.');
+            }
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // Setup pagination listeners
+    function setupPaginationListeners() {
+        document.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const page = parseInt(this.dataset.page);
+                if (page) {
+                    fetchData({ ...currentFilters, page: page });
+                }
+            });
+        });
+    }
+
+    // Filter change handlers
+    userFilter.addEventListener('change', function() {
+        fetchData({ ...currentFilters, user: this.value, page: 1 });
+    });
+
+    actionFilter.addEventListener('change', function() {
+        fetchData({ ...currentFilters, action: this.value, page: 1 });
+    });
+
+    modelFilter.addEventListener('change', function() {
+        fetchData({ ...currentFilters, model: this.value, page: 1 });
+    });
+
+    dateRangeFilter.addEventListener('change', function() {
+        fetchData({ ...currentFilters, date_range: this.value, page: 1 });
+    });
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', function(event) {
+        if (event.state && event.state.filters) {
+            const filters = event.state.filters;
+            userFilter.value = filters.user || '';
+            actionFilter.value = filters.action || '';
+            modelFilter.value = filters.model || '';
+            dateRangeFilter.value = filters.date_range || '30';
+            fetchData(filters);
+        }
+    });
+
+    // Initialize pagination listeners
+    setupPaginationListeners();
 });
 </script>
 {% endblock %}
-

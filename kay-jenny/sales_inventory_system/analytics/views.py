@@ -378,7 +378,7 @@ def sales_report(request):
     days_filter = request.GET.get('days', '')  # 1, 7, 30, 90
 
     # Build queryset - only COMPLETED payments
-    payments = Payment.objects.filter(status='COMPLETED').select_related('order')
+    payments = Payment.objects.filter(status='COMPLETED').select_related('order', 'processed_by')
 
     # Apply date filters
     if days_filter:
@@ -415,6 +415,41 @@ def sales_report(request):
 
     # Get recent payments (limit for performance)
     recent_payments = payments.order_by('-created_at')[:100]
+
+    # Handle AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        payments_data = []
+        for payment in recent_payments:
+            payments_data.append({
+                'id': payment.id,
+                'order_id': payment.order.id,
+                'order_number': payment.order.order_number,
+                'customer_name': payment.order.customer_name or 'Walk-in',
+                'method': payment.method,
+                'amount': float(payment.amount),
+                'created_at': payment.created_at.strftime('%b %d, %Y'),
+                'created_time': payment.created_at.strftime('%I:%M %p'),
+                'processed_by': payment.processed_by.username if payment.processed_by else 'System',
+            })
+
+        return JsonResponse({
+            'success': True,
+            'payments': payments_data,
+            'summary': {
+                'total_sales': float(total_sales),
+                'cash_total': float(cash_total),
+                'gcash_total': float(gcash_total),
+                'transaction_count': transaction_count,
+                'cash_count': cash_count,
+                'gcash_count': gcash_count,
+            },
+            'filters': {
+                'date_from': date_from,
+                'date_to': date_to,
+                'payment_method': payment_method,
+                'days_filter': days_filter,
+            }
+        })
 
     context = {
         'payments': recent_payments,
@@ -496,6 +531,40 @@ def cashier_sales_report(request):
 
     # Get recent payments (limit for performance)
     recent_payments = list(payments[:100])
+
+    # Handle AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        payments_data = []
+        for payment in recent_payments:
+            payments_data.append({
+                'id': payment.id,
+                'order_id': payment.order.id,
+                'order_number': payment.order.order_number,
+                'customer_name': payment.order.customer_name or 'Walk-in',
+                'method': payment.method,
+                'amount': float(payment.amount),
+                'created_at': payment.created_at.strftime('%b %d, %Y'),
+                'created_time': payment.created_at.strftime('%I:%M %p'),
+            })
+
+        return JsonResponse({
+            'success': True,
+            'payments': payments_data,
+            'summary': {
+                'total_sales': float(aggregates['total']),
+                'cash_total': float(aggregates['cash_total']),
+                'gcash_total': float(aggregates['gcash_total']),
+                'transaction_count': aggregates['transaction_count'],
+                'cash_count': aggregates['cash_count'],
+                'gcash_count': aggregates['gcash_count'],
+            },
+            'filters': {
+                'date_from': date_from,
+                'date_to': date_to,
+                'payment_method': payment_method,
+                'days_filter': days_filter,
+            }
+        })
 
     context = {
         'payments': recent_payments,

@@ -342,8 +342,54 @@ function debounce(func, wait) {
     };
 }
 
+// URL synchronization helper
+function updateUrl(params) {
+    const searchParams = new URLSearchParams();
+    if (params.search) searchParams.set('search', params.search);
+    if (params.status) searchParams.set('status', params.status);
+    if (params.time_range && params.time_range !== 'all') searchParams.set('time_range', params.time_range);
+    if (params.page && params.page > 1) searchParams.set('page', params.page);
+
+    const newUrl = searchParams.toString()
+        ? `${window.location.pathname}?${searchParams.toString()}`
+        : window.location.pathname;
+    history.pushState({ filters: params }, '', newUrl);
+}
+
+// Get filters from URL
+function getFiltersFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        search: params.get('search') || '',
+        status: params.get('status') || '',
+        time_range: params.get('time_range') || 'all',
+        page: parseInt(params.get('page')) || 1
+    };
+}
+
+// Restore filters from state
+function restoreFiltersFromState(filters) {
+    const searchInput = document.getElementById('search-input');
+    const statusFilter = document.getElementById('status-filter');
+
+    if (searchInput) searchInput.value = filters.search || '';
+    if (statusFilter) statusFilter.value = filters.status || '';
+
+    // Update time filter buttons
+    const timeFilterBtns = document.querySelectorAll('.time-filter-btn');
+    timeFilterBtns.forEach(btn => {
+        if (btn.dataset.timeRange === (filters.time_range || 'all')) {
+            btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            btn.classList.add('bg-fjc-blue-600', 'text-white');
+        } else {
+            btn.classList.remove('bg-fjc-blue-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+        }
+    });
+}
+
 // Load orders with filters
-async function loadOrders(page = 1) {
+async function loadOrders(page = 1, skipUrlUpdate = false) {
     const searchInput = document.getElementById('search-input');
     const statusFilter = document.getElementById('status-filter');
     const ordersContainer = document.getElementById('orders-container');
@@ -377,6 +423,16 @@ async function loadOrders(page = 1) {
             renderOrders(data.orders, data.pagination);
             updateResultsCount(data.pagination.total_count);
             updateClearButton();
+
+            // Update URL (unless triggered by popstate)
+            if (!skipUrlUpdate) {
+                updateUrl({
+                    search: searchInput.value,
+                    status: statusFilter.value,
+                    time_range: timeRange,
+                    page: page
+                });
+            }
         } else {
             Toast.error('Failed to load orders');
         }
@@ -610,7 +666,10 @@ function clearAllFilters() {
         }
     });
 
-    loadOrders(1);
+    // Clear URL parameters
+    history.pushState({ filters: {} }, '', window.location.pathname);
+
+    loadOrders(1, true);  // Skip URL update since we just cleared it
 }
 
 // Quick Action Functions
@@ -829,6 +888,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusFilter = document.getElementById('status-filter');
     const clearBtn = document.getElementById('clear-filters-btn');
     const clearAllBtn = document.getElementById('clear-all-btn');
+
+    // Handle browser back/forward navigation
+    window.addEventListener('popstate', function(event) {
+        if (event.state && event.state.filters) {
+            restoreFiltersFromState(event.state.filters);
+            loadOrders(event.state.filters.page || 1, true);
+        } else {
+            // No state - restore from URL
+            const filters = getFiltersFromUrl();
+            restoreFiltersFromState(filters);
+            loadOrders(filters.page || 1, true);
+        }
+    });
+
+    // Set initial history state
+    const initialFilters = getFiltersFromUrl();
+    history.replaceState({ filters: initialFilters }, '', window.location.href);
 
     // Search with debounce
     searchInput.addEventListener('input', debounce(() => loadOrders(1), 500));

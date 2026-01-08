@@ -11,6 +11,14 @@
         </a>
     </div>
 
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="hidden fixed inset-0 bg-white/50 backdrop-blur-sm z-40 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-lg p-6 flex items-center gap-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-fjc-blue-600"></div>
+            <span class="text-gray-700 font-medium">Loading...</span>
+        </div>
+    </div>
+
     <!-- User Info Card -->
     <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6">
         <div class="flex items-center gap-4">
@@ -38,17 +46,17 @@
                     <span class="material-icons text-sm">account_circle</span> Cashier
                 </span>
                 {% endif %}
-                <p class="text-sm text-gray-500 mt-2">Total Actions: <span class="font-bold text-gray-900">{{ stats.total_actions }}</span></p>
+                <p class="text-sm text-gray-500 mt-2">Total Actions: <span id="total-actions" class="font-bold text-gray-900">{{ stats.total_actions }}</span></p>
             </div>
         </div>
     </div>
 
     <!-- Filters -->
     <div class="bg-white rounded-lg shadow-md border border-fjc-blue-200 p-4">
-        <form method="GET" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label for="model-filter" class="block text-sm font-medium text-fjc-blue-800 mb-2">Model/Entity</label>
-                <select id="model-filter" name="model" class="w-full px-4 py-2 border border-fjc-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-600" onchange="this.form.submit()">
+                <select id="model-filter" class="w-full px-4 py-2 border border-fjc-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-600">
                     <option value="">All Models</option>
                     {% for model in models %}
                     <option value="{{ model }}" {% if model == model_filter %}selected{% endif %}>{{ model }}</option>
@@ -57,153 +65,155 @@
             </div>
             <div>
                 <label for="date-range-filter" class="block text-sm font-medium text-fjc-blue-800 mb-2">Date Range</label>
-                <select id="date-range-filter" name="date_range" class="w-full px-4 py-2 border border-fjc-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-600" onchange="this.form.submit()">
+                <select id="date-range-filter" class="w-full px-4 py-2 border border-fjc-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-600">
                     <option value="7" {% if date_range == '7' %}selected{% endif %}>Last 7 Days</option>
                     <option value="30" {% if date_range == '30' %}selected{% endif %}>Last 30 Days</option>
                     <option value="90" {% if date_range == '90' %}selected{% endif %}>Last 90 Days</option>
                     <option value="all" {% if date_range == 'all' %}selected{% endif %}>All Time</option>
                 </select>
             </div>
-        </form>
+        </div>
     </div>
 
     <!-- Audit Logs -->
     <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-        <!-- Desktop Table View -->
-        <div class="hidden md:block overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gradient-to-r from-fjc-yellow-50 to-fjc-blue-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Timestamp</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Model</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Description</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for log in page_obj %}
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ log.created_at|date:"M d, Y H:i:s" }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {% if log.action == 'CREATE' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 gap-1">
-                                <span class="material-icons text-sm">check_circle</span> Create
-                            </span>
-                            {% elif log.action == 'UPDATE' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1">
-                                <span class="material-icons text-sm">edit</span> Update
-                            </span>
-                            {% elif log.action == 'DELETE' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 gap-1">
-                                <span class="material-icons text-sm">delete</span> Delete
-                            </span>
-                            {% elif log.action == 'ARCHIVE' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 gap-1">
-                                <span class="material-icons text-sm">archive</span> Archive
-                            </span>
-                            {% elif log.action == 'RESTORE' %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1">
-                                <span class="material-icons text-sm">unarchive</span> Restore
-                            </span>
-                            {% else %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 gap-1">
-                                <span class="material-icons text-sm">description</span> {{ log.action }}
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+        <div id="logs-container" class="transition-opacity">
+            <!-- Desktop Table View -->
+            <div class="hidden md:block overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gradient-to-r from-fjc-yellow-50 to-fjc-blue-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Timestamp</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Model</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-table-body" class="bg-white divide-y divide-gray-200">
+                        {% for log in page_obj %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ log.created_at|date:"M d, Y H:i:s" }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if log.action == 'CREATE' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 gap-1">
+                                    <span class="material-icons text-sm">check_circle</span> Create
+                                </span>
+                                {% elif log.action == 'UPDATE' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1">
+                                    <span class="material-icons text-sm">edit</span> Update
+                                </span>
+                                {% elif log.action == 'DELETE' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 gap-1">
+                                    <span class="material-icons text-sm">delete</span> Delete
+                                </span>
+                                {% elif log.action == 'ARCHIVE' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 gap-1">
+                                    <span class="material-icons text-sm">archive</span> Archive
+                                </span>
+                                {% elif log.action == 'RESTORE' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1">
+                                    <span class="material-icons text-sm">unarchive</span> Restore
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 gap-1">
+                                    <span class="material-icons text-sm">description</span> {{ log.action }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ log.model_name }} #{{ log.record_id }}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-900">
+                                {{ log.description|default:"-" }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="px-6 py-12 text-center text-gray-500">
+                                <span class="material-icons text-4xl mb-2 block">assignment</span>
+                                <p class="text-lg">No audit logs found for this user</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Card View -->
+            <div id="logs-cards" class="md:hidden divide-y divide-gray-200">
+                {% for log in page_obj %}
+                <div class="p-4 hover:bg-gray-50 transition">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="text-sm font-medium text-gray-900">
                             {{ log.model_name }} #{{ log.record_id }}
-                        </td>
-                        <td class="px-6 py-4 text-sm text-gray-900">
-                            {{ log.description|default:"-" }}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="px-6 py-12 text-center text-gray-500">
-                            <span class="material-icons text-4xl mb-2 block">assignment</span>
-                            <p class="text-lg">No audit logs found for this user</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                        </div>
+                        {% if log.action == 'CREATE' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 gap-1">
+                            <span class="material-icons text-sm">check_circle</span> Create
+                        </span>
+                        {% elif log.action == 'UPDATE' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1">
+                            <span class="material-icons text-sm">edit</span> Update
+                        </span>
+                        {% elif log.action == 'DELETE' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 gap-1">
+                            <span class="material-icons text-sm">delete</span> Delete
+                        </span>
+                        {% elif log.action == 'ARCHIVE' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 gap-1">
+                            <span class="material-icons text-sm">archive</span> Archive
+                        </span>
+                        {% elif log.action == 'RESTORE' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1">
+                            <span class="material-icons text-sm">unarchive</span> Restore
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 gap-1">
+                            <span class="material-icons text-sm">description</span> {{ log.action }}
+                        </span>
+                        {% endif %}
+                    </div>
 
-        <!-- Mobile Card View -->
-        <div class="md:hidden divide-y divide-gray-200">
-            {% for log in page_obj %}
-            <div class="p-4 hover:bg-gray-50 transition">
-                <div class="flex justify-between items-start mb-2">
-                    <div class="text-sm font-medium text-gray-900">
-                        {{ log.model_name }} #{{ log.record_id }}
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Timestamp:</span>
+                            <span class="text-gray-900">{{ log.created_at|date:"M d, Y H:i:s" }}</span>
+                        </div>
+                        {% if log.description %}
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Description:</span>
+                            <span class="text-gray-900">{{ log.description }}</span>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% if log.action == 'CREATE' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 gap-1">
-                        <span class="material-icons text-sm">check_circle</span> Create
-                    </span>
-                    {% elif log.action == 'UPDATE' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1">
-                        <span class="material-icons text-sm">edit</span> Update
-                    </span>
-                    {% elif log.action == 'DELETE' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 gap-1">
-                        <span class="material-icons text-sm">delete</span> Delete
-                    </span>
-                    {% elif log.action == 'ARCHIVE' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 gap-1">
-                        <span class="material-icons text-sm">archive</span> Archive
-                    </span>
-                    {% elif log.action == 'RESTORE' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1">
-                        <span class="material-icons text-sm">unarchive</span> Restore
-                    </span>
-                    {% else %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 gap-1">
-                        <span class="material-icons text-sm">description</span> {{ log.action }}
-                    </span>
-                    {% endif %}
                 </div>
-
-                <div class="space-y-2">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">Timestamp:</span>
-                        <span class="text-gray-900">{{ log.created_at|date:"M d, Y H:i:s" }}</span>
-                    </div>
-                    {% if log.description %}
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">Description:</span>
-                        <span class="text-gray-900">{{ log.description }}</span>
-                    </div>
-                    {% endif %}
+                {% empty %}
+                <div class="px-6 py-12 text-center text-gray-500">
+                    <span class="material-icons text-5xl mb-2 block">assignment</span>
+                    <p class="text-lg">No audit logs found for this user</p>
                 </div>
+                {% endfor %}
             </div>
-            {% empty %}
-            <div class="px-6 py-12 text-center text-gray-500">
-                <span class="material-icons text-5xl mb-2 block">assignment</span>
-                <p class="text-lg">No audit logs found for this user</p>
-            </div>
-            {% endfor %}
         </div>
 
         <!-- Pagination -->
-        <div class="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p class="text-sm text-gray-600">
+        <div id="pagination-container" class="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p class="text-sm text-gray-600" id="pagination-info">
                 Showing <span class="font-semibold">{{ page_obj.start_index|default:0 }}</span>
                 to <span class="font-semibold">{{ page_obj.end_index|default:0 }}</span>
                 of <span class="font-semibold">{{ total_count }}</span> audit logs
             </p>
-            <div class="flex gap-2 w-full sm:w-auto">
+            <div class="flex gap-2 w-full sm:w-auto" id="pagination-buttons">
                 {% if page_obj.has_previous %}
-                <a href="?model={{ model_filter }}&date_range={{ date_range }}&page={{ page_obj.previous_page_number }}" class="flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Previous</a>
+                <button data-page="{{ page_obj.previous_page_number }}" class="pagination-btn flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Previous</button>
                 {% else %}
                 <button disabled class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 text-gray-600 font-medium rounded-lg text-sm">Previous</button>
                 {% endif %}
 
                 {% if page_obj.has_next %}
-                <a href="?model={{ model_filter }}&date_range={{ date_range }}&page={{ page_obj.next_page_number }}" class="flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Next</a>
+                <button data-page="{{ page_obj.next_page_number }}" class="pagination-btn flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Next</button>
                 {% else %}
                 <button disabled class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 text-gray-600 font-medium rounded-lg text-sm">Next</button>
                 {% endif %}
@@ -211,4 +221,212 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // State management
+    let currentFilters = {
+        model: '{{ model_filter }}',
+        date_range: '{{ date_range }}',
+        page: {{ page_obj.number }}
+    };
+
+    // Elements
+    const modelFilter = document.getElementById('model-filter');
+    const dateRangeFilter = document.getElementById('date-range-filter');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const logsContainer = document.getElementById('logs-container');
+
+    // Show loading state
+    function showLoading() {
+        loadingIndicator.classList.remove('hidden');
+        logsContainer.classList.add('opacity-50');
+    }
+
+    // Hide loading state
+    function hideLoading() {
+        loadingIndicator.classList.add('hidden');
+        logsContainer.classList.remove('opacity-50');
+    }
+
+    // Update URL without reload
+    function updateUrl(params) {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value && key !== 'page') searchParams.set(key, value);
+        });
+        if (params.page && params.page > 1) searchParams.set('page', params.page);
+        const newUrl = searchParams.toString()
+            ? `${window.location.pathname}?${searchParams.toString()}`
+            : window.location.pathname;
+        history.pushState({ filters: params }, '', newUrl);
+    }
+
+    // Get action badge HTML
+    function getActionBadge(action) {
+        const badges = {
+            'CREATE': '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 gap-1"><span class="material-icons text-sm">check_circle</span> Create</span>',
+            'UPDATE': '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1"><span class="material-icons text-sm">edit</span> Update</span>',
+            'DELETE': '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 gap-1"><span class="material-icons text-sm">delete</span> Delete</span>',
+            'ARCHIVE': '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 gap-1"><span class="material-icons text-sm">archive</span> Archive</span>',
+            'RESTORE': '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 gap-1"><span class="material-icons text-sm">unarchive</span> Restore</span>'
+        };
+        return badges[action] || `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 gap-1"><span class="material-icons text-sm">description</span> ${action}</span>`;
+    }
+
+    // Render results
+    function renderResults(data) {
+        const tableBody = document.getElementById('logs-table-body');
+        const cardsContainer = document.getElementById('logs-cards');
+
+        if (data.logs.length === 0) {
+            const emptyHtml = `
+                <tr>
+                    <td colspan="4" class="px-6 py-12 text-center text-gray-500">
+                        <span class="material-icons text-4xl mb-2 block">assignment</span>
+                        <p class="text-lg">No audit logs found for this user</p>
+                    </td>
+                </tr>
+            `;
+            tableBody.innerHTML = emptyHtml;
+            cardsContainer.innerHTML = `
+                <div class="px-6 py-12 text-center text-gray-500">
+                    <span class="material-icons text-5xl mb-2 block">assignment</span>
+                    <p class="text-lg">No audit logs found for this user</p>
+                </div>
+            `;
+        } else {
+            // Render table rows
+            tableBody.innerHTML = data.logs.map(log => `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${log.created_at}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${getActionBadge(log.action)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${log.model_name} #${log.record_id}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900">${log.description || '-'}</td>
+                </tr>
+            `).join('');
+
+            // Render mobile cards
+            cardsContainer.innerHTML = data.logs.map(log => `
+                <div class="p-4 hover:bg-gray-50 transition">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="text-sm font-medium text-gray-900">${log.model_name} #${log.record_id}</div>
+                        ${getActionBadge(log.action)}
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Timestamp:</span>
+                            <span class="text-gray-900">${log.created_at}</span>
+                        </div>
+                        ${log.description ? `
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Description:</span>
+                            <span class="text-gray-900">${log.description}</span>
+                        </div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update stats
+        if (data.stats) {
+            document.getElementById('total-actions').textContent = data.stats.total_actions;
+        }
+
+        // Update pagination
+        const paginationInfo = document.getElementById('pagination-info');
+        paginationInfo.innerHTML = `
+            Showing <span class="font-semibold">${data.pagination.start_index || 0}</span>
+            to <span class="font-semibold">${data.pagination.end_index || 0}</span>
+            of <span class="font-semibold">${data.pagination.total_count}</span> audit logs
+        `;
+
+        const paginationButtons = document.getElementById('pagination-buttons');
+        paginationButtons.innerHTML = `
+            ${data.pagination.has_previous
+                ? `<button data-page="${data.pagination.previous_page}" class="pagination-btn flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Previous</button>`
+                : `<button disabled class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 text-gray-600 font-medium rounded-lg text-sm">Previous</button>`
+            }
+            ${data.pagination.has_next
+                ? `<button data-page="${data.pagination.next_page}" class="pagination-btn flex-1 sm:flex-none px-4 py-2 bg-fjc-blue-600 hover:bg-fjc-blue-700 text-white font-medium rounded-lg transition text-sm text-center">Next</button>`
+                : `<button disabled class="flex-1 sm:flex-none px-4 py-2 bg-gray-200 text-gray-600 font-medium rounded-lg text-sm">Next</button>`
+            }
+        `;
+
+        setupPaginationListeners();
+    }
+
+    // Fetch filtered data
+    async function fetchData(filters) {
+        showLoading();
+
+        try {
+            const params = new URLSearchParams();
+            if (filters.model) params.set('model', filters.model);
+            if (filters.date_range) params.set('date_range', filters.date_range);
+            if (filters.page && filters.page > 1) params.set('page', filters.page);
+
+            const response = await fetch(`${window.location.pathname}?${params.toString()}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+
+            if (data.success) {
+                renderResults(data);
+                updateUrl(filters);
+                currentFilters = { ...filters };
+            } else {
+                throw new Error(data.message || 'Failed to load data');
+            }
+        } catch (error) {
+            console.error('Filter error:', error);
+            if (typeof Toast !== 'undefined') {
+                Toast.error('Failed to load results. Please try again.');
+            }
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // Setup pagination listeners
+    function setupPaginationListeners() {
+        document.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const page = parseInt(this.dataset.page);
+                if (page) {
+                    fetchData({ ...currentFilters, page: page });
+                }
+            });
+        });
+    }
+
+    // Filter change handlers
+    modelFilter.addEventListener('change', function() {
+        fetchData({ ...currentFilters, model: this.value, page: 1 });
+    });
+
+    dateRangeFilter.addEventListener('change', function() {
+        fetchData({ ...currentFilters, date_range: this.value, page: 1 });
+    });
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', function(event) {
+        if (event.state && event.state.filters) {
+            const filters = event.state.filters;
+            modelFilter.value = filters.model || '';
+            dateRangeFilter.value = filters.date_range || '30';
+            fetchData(filters);
+        }
+    });
+
+    // Initialize pagination listeners
+    setupPaginationListeners();
+});
+</script>
 {% endblock %}

@@ -15,7 +15,12 @@
       "Bash(timeout 180 python manage.py:*)",
       "Bash(ls:*)",
       "Bash(timeout 10 bash:*)",
-      "Bash(timeout 180 python:*)"
+      "Bash(timeout 180 python:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

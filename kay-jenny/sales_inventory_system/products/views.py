@@ -497,8 +497,43 @@ def ingredient_list(request):
     ingredients = ingredients.order_by('name')
 
     # Pagination
+    total_count = ingredients.count()
     paginator = Paginator(ingredients, 20)
     page_obj = paginator.get_page(page_number)
+
+    # Handle AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        ingredients_data = []
+        for ing in page_obj:
+            ingredients_data.append({
+                'id': ing.id,
+                'name': ing.name,
+                'current_stock': float(ing.current_stock),
+                'min_stock': float(ing.min_stock),
+                'unit': ing.unit,
+                'is_active': ing.is_active,
+                'is_low_stock': ing.current_stock < ing.min_stock,
+            })
+
+        return JsonResponse({
+            'success': True,
+            'ingredients': ingredients_data,
+            'pagination': {
+                'current_page': page_obj.number,
+                'total_pages': paginator.num_pages,
+                'total_count': total_count,
+                'has_previous': page_obj.has_previous(),
+                'has_next': page_obj.has_next(),
+                'previous_page': page_obj.previous_page_number() if page_obj.has_previous() else None,
+                'next_page': page_obj.next_page_number() if page_obj.has_next() else None,
+                'start_index': page_obj.start_index(),
+                'end_index': page_obj.end_index(),
+            },
+            'filters': {
+                'search': search,
+                'status': status,
+            }
+        })
 
     context = {
         'page_obj': page_obj,

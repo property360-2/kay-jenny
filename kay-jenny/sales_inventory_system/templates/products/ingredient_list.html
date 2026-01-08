@@ -15,8 +15,16 @@
             <p class="mt-1 text-sm text-gray-500">Manage raw materials and inventory</p>
         </div>
         <a href="{% url 'products:ingredient_create' %}" class="px-4 py-2 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium text-sm">
-            ➕ Add Ingredient
+            + Add Ingredient
         </a>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="hidden fixed inset-0 bg-white/50 backdrop-blur-sm z-40 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-lg p-6 flex items-center gap-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-fjc-blue-600"></div>
+            <span class="text-gray-700 font-medium">Loading...</span>
+        </div>
     </div>
 
     <!-- Search and Filters -->
@@ -25,125 +33,111 @@
             <!-- Search -->
             <div class="md:col-span-2">
                 <label for="search-input" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                <form method="get" class="flex gap-2">
-                    <input type="text" id="search-input" name="search" placeholder="Search by ingredient name..." value="{{ search }}"
+                <div class="flex gap-2">
+                    <input type="text" id="search-input" placeholder="Search by ingredient name..." value="{{ search }}"
                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
-                    <button type="submit" class="px-4 py-2 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium">
-                        Search
-                    </button>
-                    {% if search or status %}
-                    <a href="{% url 'products:ingredient_list' %}" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium">
+                    <button type="button" id="clear-filters-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium">
                         Clear
-                    </a>
-                    {% endif %}
-                </form>
+                    </button>
+                </div>
             </div>
 
             <!-- Status Filter -->
             <div>
                 <label for="status-filter" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <form method="get" class="flex gap-2">
-                    <input type="hidden" name="search" value="{{ search }}">
-                    <select name="status" onchange="this.form.submit()" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
-                        <option value="">All</option>
-                        <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
-                        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
-                        <option value="low" {% if status == 'low' %}selected{% endif %}>Low Stock</option>
-                    </select>
-                </form>
+                <select id="status-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fjc-blue-500">
+                    <option value="">All</option>
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="low" {% if status == 'low' %}selected{% endif %}>Low Stock</option>
+                </select>
             </div>
         </div>
     </div>
 
     <!-- Ingredients Table -->
     <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-        {% if ingredients %}
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Ingredient</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Current Stock</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Min Stock</th>
-                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    {% for ingredient in ingredients %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4">
-                            <div>
-                                <h3 class="font-semibold text-gray-900">{{ ingredient.name }}</h3>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            {% if ingredient.current_stock < ingredient.min_stock %}
-                            <span class="font-semibold text-red-600">{{ ingredient.current_stock|smart_unit_display:ingredient.unit }}</span>
-                            {% else %}
-                            <span class="font-semibold text-green-600">{{ ingredient.current_stock|smart_unit_display:ingredient.unit }}</span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 text-right text-gray-700">{{ ingredient.min_stock|smart_unit_display:ingredient.unit }}</td>
-                        <td class="px-6 py-4 text-center">
-                            {% if ingredient.is_active %}
-                            <span class="inline-block px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-800">Active</span>
-                            {% else %}
-                            <span class="inline-block px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-800">Inactive</span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 text-center">
-                            <div class="flex justify-center gap-2">
-                                <a href="{% url 'products:ingredient_edit' ingredient.pk %}" class="text-fjc-blue-600 hover:text-fjc-blue-700 font-medium text-sm">
-                                    <span class="material-icons">edit</span> Edit
-                                </a>
-                                <button type="button" onclick="deleteIngredient({{ ingredient.pk }}, '{{ ingredient.name|escapejs }}')" class="text-red-600 hover:text-red-700 font-medium text-sm">
-                                    🗑️ Delete
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div id="ingredients-container" class="transition-opacity">
+            {% if ingredients %}
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Ingredient</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Current Stock</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Min Stock</th>
+                            <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ingredients-body" class="divide-y divide-gray-200">
+                        {% for ingredient in ingredients %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4">
+                                <div>
+                                    <h3 class="font-semibold text-gray-900">{{ ingredient.name }}</h3>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                {% if ingredient.current_stock < ingredient.min_stock %}
+                                <span class="font-semibold text-red-600">{{ ingredient.current_stock|smart_unit_display:ingredient.unit }}</span>
+                                {% else %}
+                                <span class="font-semibold text-green-600">{{ ingredient.current_stock|smart_unit_display:ingredient.unit }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right text-gray-700">{{ ingredient.min_stock|smart_unit_display:ingredient.unit }}</td>
+                            <td class="px-6 py-4 text-center">
+                                {% if ingredient.is_active %}
+                                <span class="inline-block px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-800">Active</span>
+                                {% else %}
+                                <span class="inline-block px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-800">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <div class="flex justify-center gap-2">
+                                    <a href="{% url 'products:ingredient_edit' ingredient.pk %}" class="text-fjc-blue-600 hover:text-fjc-blue-700 font-medium text-sm">
+                                        <span class="material-icons">edit</span> Edit
+                                    </a>
+                                    <button type="button" onclick="deleteIngredient({{ ingredient.pk }}, '{{ ingredient.name|escapejs }}')" class="text-red-600 hover:text-red-700 font-medium text-sm">
+                                        Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div id="empty-state" class="px-6 py-12 text-center">
+                <span class="text-6xl mb-4 block">&#128230;</span>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">No ingredients found</h3>
+                <p class="text-gray-600 mb-6">{% if search or status %}Try adjusting your filters{% else %}Start by adding your first ingredient{% endif %}</p>
+                <a href="{% url 'products:ingredient_create' %}" class="inline-block px-6 py-3 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium">
+                    Add Ingredient
+                </a>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Pagination -->
-        {% if page_obj.paginator.num_pages > 1 %}
-        <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p class="text-sm text-gray-600">
-                Showing <span class="font-semibold">{{ page_obj.start_index }}</span> to <span class="font-semibold">{{ page_obj.end_index }}</span> of <span class="font-semibold">{{ page_obj.paginator.count }}</span>
+        <div id="pagination-container" class="px-6 py-4 border-t border-gray-200 flex items-center justify-between {% if not page_obj.paginator.num_pages > 1 %}hidden{% endif %}">
+            <p class="text-sm text-gray-600" id="pagination-info">
+                Showing <span class="font-semibold">{{ page_obj.start_index|default:0 }}</span> to <span class="font-semibold">{{ page_obj.end_index|default:0 }}</span> of <span class="font-semibold">{{ page_obj.paginator.count }}</span>
             </p>
-            <div class="flex gap-2">
+            <div class="flex gap-2" id="pagination-buttons">
                 {% if page_obj.has_previous %}
-                <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium text-sm">
-                    First
-                </a>
-                <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium text-sm">
-                    Previous
-                </a>
+                <button data-page="{{ page_obj.previous_page_number }}" class="pagination-btn px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium text-sm">Previous</button>
+                {% else %}
+                <button disabled class="px-3 py-2 bg-gray-100 text-gray-400 rounded-lg font-medium text-sm">Previous</button>
                 {% endif %}
                 {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium text-sm">
-                    Next
-                </a>
-                <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium text-sm">
-                    Last
-                </a>
+                <button data-page="{{ page_obj.next_page_number }}" class="pagination-btn px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium text-sm">Next</button>
+                {% else %}
+                <button disabled class="px-3 py-2 bg-gray-100 text-gray-400 rounded-lg font-medium text-sm">Next</button>
                 {% endif %}
             </div>
         </div>
-        {% endif %}
-        {% else %}
-        <div class="px-6 py-12 text-center">
-            <span class="text-6xl mb-4 block">📦</span>
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">No ingredients found</h3>
-            <p class="text-gray-600 mb-6">{% if search or status %}Try adjusting your filters{% else %}Start by adding your first ingredient{% endif %}</p>
-            <a href="{% url 'products:ingredient_create' %}" class="inline-block px-6 py-3 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium">
-                Add Ingredient
-            </a>
-        </div>
-        {% endif %}
     </div>
 </div>
 
@@ -154,6 +148,231 @@
 
 {% block extra_js %}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // State management
+    let currentFilters = {
+        search: '{{ search }}',
+        status: '{{ status }}',
+        page: {{ page_obj.number }}
+    };
+    let debounceTimer;
+
+    // Elements
+    const searchInput = document.getElementById('search-input');
+    const statusFilter = document.getElementById('status-filter');
+    const clearFiltersBtn = document.getElementById('clear-filters-btn');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const ingredientsContainer = document.getElementById('ingredients-container');
+    const paginationContainer = document.getElementById('pagination-container');
+
+    // Format stock with unit
+    function formatStock(value, unit) {
+        if (unit === 'g' && value >= 1000) {
+            return (value / 1000).toFixed(2) + ' kg';
+        } else if (unit === 'ml' && value >= 1000) {
+            return (value / 1000).toFixed(2) + ' L';
+        }
+        return value.toFixed(2) + ' ' + unit;
+    }
+
+    // Show loading state
+    function showLoading() {
+        loadingIndicator.classList.remove('hidden');
+        ingredientsContainer.classList.add('opacity-50');
+    }
+
+    // Hide loading state
+    function hideLoading() {
+        loadingIndicator.classList.add('hidden');
+        ingredientsContainer.classList.remove('opacity-50');
+    }
+
+    // Update URL without reload
+    function updateUrl(params) {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value && key !== 'page') searchParams.set(key, value);
+        });
+        if (params.page && params.page > 1) searchParams.set('page', params.page);
+        const newUrl = searchParams.toString()
+            ? `${window.location.pathname}?${searchParams.toString()}`
+            : window.location.pathname;
+        history.pushState({ filters: params }, '', newUrl);
+    }
+
+    // Render results
+    function renderResults(data) {
+        const tbody = document.getElementById('ingredients-body');
+
+        if (data.ingredients.length === 0) {
+            ingredientsContainer.innerHTML = `
+                <div id="empty-state" class="px-6 py-12 text-center">
+                    <span class="text-6xl mb-4 block">&#128230;</span>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">No ingredients found</h3>
+                    <p class="text-gray-600 mb-6">Try adjusting your filters</p>
+                    <a href="{% url 'products:ingredient_create' %}" class="inline-block px-6 py-3 bg-fjc-blue-600 text-white rounded-lg hover:bg-fjc-blue-700 font-medium">
+                        Add Ingredient
+                    </a>
+                </div>
+            `;
+            paginationContainer.classList.add('hidden');
+            return;
+        }
+
+        // Ensure table structure exists
+        if (!document.getElementById('ingredients-body')) {
+            ingredientsContainer.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Ingredient</th>
+                                <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Current Stock</th>
+                                <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Min Stock</th>
+                                <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ingredients-body" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        const newTbody = document.getElementById('ingredients-body');
+        newTbody.innerHTML = data.ingredients.map(ing => `
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4">
+                    <div>
+                        <h3 class="font-semibold text-gray-900">${ing.name}</h3>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <span class="font-semibold ${ing.is_low_stock ? 'text-red-600' : 'text-green-600'}">${formatStock(ing.current_stock, ing.unit)}</span>
+                </td>
+                <td class="px-6 py-4 text-right text-gray-700">${formatStock(ing.min_stock, ing.unit)}</td>
+                <td class="px-6 py-4 text-center">
+                    <span class="inline-block px-2 py-1 rounded text-xs font-semibold ${ing.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${ing.is_active ? 'Active' : 'Inactive'}</span>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <div class="flex justify-center gap-2">
+                        <a href="/products/ingredients/${ing.id}/edit/" class="text-fjc-blue-600 hover:text-fjc-blue-700 font-medium text-sm">
+                            <span class="material-icons">edit</span> Edit
+                        </a>
+                        <button type="button" onclick="deleteIngredient(${ing.id}, '${ing.name.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-700 font-medium text-sm">
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        // Update pagination
+        if (data.pagination.total_pages > 1) {
+            paginationContainer.classList.remove('hidden');
+            document.getElementById('pagination-info').innerHTML = `
+                Showing <span class="font-semibold">${data.pagination.start_index}</span> to <span class="font-semibold">${data.pagination.end_index}</span> of <span class="font-semibold">${data.pagination.total_count}</span>
+            `;
+            document.getElementById('pagination-buttons').innerHTML = `
+                ${data.pagination.has_previous
+                    ? `<button data-page="${data.pagination.previous_page}" class="pagination-btn px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium text-sm">Previous</button>`
+                    : `<button disabled class="px-3 py-2 bg-gray-100 text-gray-400 rounded-lg font-medium text-sm">Previous</button>`
+                }
+                ${data.pagination.has_next
+                    ? `<button data-page="${data.pagination.next_page}" class="pagination-btn px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium text-sm">Next</button>`
+                    : `<button disabled class="px-3 py-2 bg-gray-100 text-gray-400 rounded-lg font-medium text-sm">Next</button>`
+                }
+            `;
+            setupPaginationListeners();
+        } else {
+            paginationContainer.classList.add('hidden');
+        }
+    }
+
+    // Fetch filtered data
+    async function fetchData(filters) {
+        showLoading();
+
+        try {
+            const params = new URLSearchParams();
+            if (filters.search) params.set('search', filters.search);
+            if (filters.status) params.set('status', filters.status);
+            if (filters.page && filters.page > 1) params.set('page', filters.page);
+
+            const response = await fetch(`${window.location.pathname}?${params.toString()}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+
+            if (data.success) {
+                renderResults(data);
+                updateUrl(filters);
+                currentFilters = { ...filters };
+            } else {
+                throw new Error(data.message || 'Failed to load data');
+            }
+        } catch (error) {
+            console.error('Filter error:', error);
+            if (typeof Toast !== 'undefined') {
+                Toast.error('Failed to load results. Please try again.');
+            }
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // Setup pagination listeners
+    function setupPaginationListeners() {
+        document.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const page = parseInt(this.dataset.page);
+                if (page) {
+                    fetchData({ ...currentFilters, page: page });
+                }
+            });
+        });
+    }
+
+    // Search input with debounce
+    searchInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            fetchData({ ...currentFilters, search: this.value, page: 1 });
+        }, 500);
+    });
+
+    // Status filter change
+    statusFilter.addEventListener('change', function() {
+        fetchData({ ...currentFilters, status: this.value, page: 1 });
+    });
+
+    // Clear filters
+    clearFiltersBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        statusFilter.value = '';
+        fetchData({ search: '', status: '', page: 1 });
+    });
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', function(event) {
+        if (event.state && event.state.filters) {
+            const filters = event.state.filters;
+            searchInput.value = filters.search || '';
+            statusFilter.value = filters.status || '';
+            fetchData(filters);
+        }
+    });
+
+    // Initialize pagination listeners
+    setupPaginationListeners();
+});
+
 // Delete ingredient with professional confirmation
 function deleteIngredient(ingredientId, ingredientName) {
     Confirm.show({
