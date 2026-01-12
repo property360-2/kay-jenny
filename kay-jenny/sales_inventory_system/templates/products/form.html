@@ -400,6 +400,59 @@ document.addEventListener('DOMContentLoaded', function() {
     const bomToggle = document.getElementById('requires-bom-toggle');
     const stockFieldContainer = document.getElementById('stock-field-container');
     const ingredientsSectionContainer = document.getElementById('ingredients-section-container');
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    // ========== DUPLICATE NAME VALIDATION ==========
+    const nameErrorEl = document.getElementById('name-error');
+    const initialName = nameInput.value.trim();
+    let debounceTimeout;
+
+    const checkName = async () => {
+        const name = nameInput.value.trim();
+        const productId = '{{ product.id|default:"" }}';
+
+        if (name === '' && '{{ action }}' === 'Create') {
+            clearError(nameInput, nameErrorEl);
+            submitBtn.disabled = false; // Or true if name is required
+            return;
+        }
+
+        if (name.toLowerCase() === initialName.toLowerCase() && productId) {
+             clearError(nameInput, nameErrorEl);
+             submitBtn.disabled = false;
+             return;
+        }
+
+        if (name.length < 2) {
+            showError(nameInput, nameErrorEl, 'Product name must be at least 2 characters');
+            submitBtn.disabled = true;
+            return;
+        }
+
+        try {
+            const params = new URLSearchParams({ name: name, product_id: productId });
+            const response = await fetch(`/products/api/check-product-name/?${params.toString()}`);
+            const data = await response.json();
+
+            if (data.exists) {
+                showError(nameInput, nameErrorEl, `Duplicate name prohibited: "${data.duplicate_name}" already exists.`);
+                submitBtn.disabled = true;
+            } else {
+                clearError(nameInput, nameErrorEl);
+                submitBtn.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error checking product name:', error);
+            clearError(nameInput, nameErrorEl); // Don't block on network error
+            submitBtn.disabled = false;
+        }
+    };
+
+    nameInput.addEventListener('input', () => {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(checkName, 300); // 300ms debounce
+    });
+    // ========== END DUPLICATE NAME VALIDATION ==========
 
     // Toggle BOM requirement
     function handleBOMToggle() {
@@ -438,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showError(nameInput, errorEl, 'Product name must be at least 2 characters');
             return false;
         } else {
-            clearError(nameInput, errorEl);
+            // Error is cleared by the debounced checkName function
             return true;
         }
     }
@@ -494,55 +547,13 @@ document.addEventListener('DOMContentLoaded', function() {
         errorEl.textContent = '';
         errorEl.classList.add('hidden');
     }
-
-    // Add event listeners for real-time validation
-    nameInput.addEventListener('blur', async function() {
-        if (!validateName()) return;
-
-        // Check for duplicate product names
-        const name = nameInput.value.trim();
-        const productId = '{{ product.id|default:"" }}';
-        const errorEl = document.getElementById('name-error');
-
-        try {
-            const params = new URLSearchParams({ name: name, product_id: productId });
-            const response = await fetch(`/products/api/check-product-name/?${params.toString()}`);
-            const data = await response.json();
-
-            if (data.exists) {
-                showError(
-                    nameInput,
-                    errorEl,
-                    `⚠️ Warning: "${data.duplicate_name}" already exists in ${data.category}. Please verify this is not a duplicate.`
-                );
-                nameInput.classList.remove('border-red-500');
-                nameInput.classList.add('border-yellow-500', 'focus:border-yellow-500', 'focus:ring-yellow-500');
-            } else {
-                clearError(nameInput, errorEl);
-            }
-        } catch (error) {
-            console.error('Error checking product name:', error);
-        }
-    });
-    nameInput.addEventListener('input', function() {
-        if (nameInput.value.trim()) {
-            validateName();
-        }
-    });
-
+    
     priceInput.addEventListener('blur', validatePrice);
-    priceInput.addEventListener('input', function() {
-        if (priceInput.value) {
-            validatePrice();
-        }
-    });
+    priceInput.addEventListener('input', () => { if (priceInput.value) validatePrice() });
 
     stockInput.addEventListener('blur', validateStock);
-    stockInput.addEventListener('input', function() {
-        if (stockInput.value) {
-            validateStock();
-        }
-    });
+    stockInput.addEventListener('input', () => { if (stockInput.value) validateStock() });
+
 
     // Validate on form submit
     form.addEventListener('submit', function(e) {
@@ -550,6 +561,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const isPriceValid = validatePrice();
         const requiresBOM = bomToggle.checked;
         let isValid = isNameValid && isPriceValid;
+
+        // Final check on name before submitting
+        if (submitBtn.disabled) {
+            isValid = false;
+        }
 
         // Validate based on product type
         if (requiresBOM) {
@@ -591,7 +607,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Disable submit button and show loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) {
                 submitBtn.disabled = true;
                 const originalText = submitBtn.innerHTML;
@@ -626,7 +641,7 @@ async function loadCategories() {
 // Populate category dropdown
 function populateCategoryDropdown() {
     const categorySelect = document.getElementById('category');
-    const currentValue = categorySelect.value;
+    const currentValue = '{{ product.category|default_if_none:""|escapejs }}';
 
     // Clear existing options except the first one
     while (categorySelect.options.length > 1) {
@@ -746,19 +761,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelAddCategoryBtn = document.getElementById('cancelAddCategoryBtn');
 
     // Handle dropdown change
-    categorySelect.addEventListener('change', handleCategoryChange);
+    if(categorySelect) categorySelect.addEventListener('change', handleCategoryChange);
 
     // Handle form submission
-    addCategoryForm.addEventListener('submit', handleAddCategorySubmit);
+    if(addCategoryForm) addCategoryForm.addEventListener('submit', handleAddCategorySubmit);
 
     // Handle cancel button
-    cancelAddCategoryBtn.addEventListener('click', function() {
+    if(cancelAddCategoryBtn) cancelAddCategoryBtn.addEventListener('click', function() {
         modal.classList.add('hidden');
         categorySelect.value = ''; // Reset to default option
     });
 
     // Close modal when clicking outside
-    modal.addEventListener('click', function(e) {
+    if(modal) modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             modal.classList.add('hidden');
             categorySelect.value = '';
@@ -891,9 +906,10 @@ function addIngredient() {
 
 // Remove ingredient
 function removeIngredient(ingredientId) {
-    selectedIngredients.delete(ingredientId);
+    selectedIngredients.delete(String(ingredientId));
     renderIngredientsList();
 }
+
 
 // Render ingredients list
 function renderIngredientsList() {
@@ -923,10 +939,10 @@ function renderIngredientsList() {
                         step="0.01"
                         min="0.01"
                         class="ingredient-qty w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                        onchange="updateIngredientQty(${id}, this.value)"
+                        onchange="updateIngredientQty('${id}', this.value)"
                     />
                     <span class="text-sm text-gray-600">${ing.unit}</span>
-                    <button type="button" class="remove-ingredient px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 text-sm font-medium transition" onclick="removeIngredient(${id})">
+                    <button type="button" class="remove-ingredient px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 text-sm font-medium transition" onclick="removeIngredient('${id}')">
                         Remove
                     </button>
                 </div>
@@ -968,8 +984,8 @@ function updateHiddenIngredientsInput() {
 // Validate ingredients before form submit
 function validateIngredients() {
     const errorDiv = document.getElementById('ingredient-error');
-    if (selectedIngredients.size === 0) {
-        errorDiv.textContent = 'Please add at least one ingredient';
+    if (bomToggle.checked && selectedIngredients.size === 0) {
+        errorDiv.textContent = 'Please add at least one ingredient for a BOM product.';
         errorDiv.classList.remove('hidden');
         return false;
     }
@@ -980,6 +996,8 @@ function validateIngredients() {
 // Initialize event listeners
 document.addEventListener('DOMContentLoaded', function() {
     loadIngredients();
+    
+    handleBOMToggle(); // Set initial state for BOM toggle
 
     const searchInput = document.getElementById('ingredient-search');
     const quantityInput = document.getElementById('ingredient-quantity');
@@ -995,7 +1013,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         searchInput.addEventListener('blur', () => {
             setTimeout(() => {
-                suggestionsDiv.classList.add('hidden');
+                if(!suggestionsDiv.matches(':hover')) {
+                   suggestionsDiv.classList.add('hidden');
+                }
             }, 200);
         });
 
@@ -1013,24 +1033,26 @@ document.addEventListener('DOMContentLoaded', function() {
         addBtn.addEventListener('click', addIngredient);
     }
 
-    // Note: Form validation is handled in the main submit listener above (lines 565-627)
-    // Ingredient validation only runs when BOM is required
-
     // Load existing ingredients if editing
     const ingredientsList = document.getElementById('ingredients-list');
-    if (ingredientsList && ingredientsList.children.length > 0) {
+    if (ingredientsList) {
         const items = ingredientsList.querySelectorAll('.ingredient-item[data-ingredient-id]');
-        items.forEach(item => {
-            const id = parseInt(item.dataset.ingredientId);
-            const qtyInput = item.querySelector('.ingredient-qty');
-            const quantity = parseFloat(qtyInput.value);
-            const name = item.querySelector('p.font-medium').textContent;
-            const unit = item.querySelector('p.text-xs').textContent;
+        if (items.length > 0) {
+            items.forEach(item => {
+                const id = item.dataset.ingredientId;
+                const qtyInput = item.querySelector('.ingredient-qty');
+                const quantity = parseFloat(qtyInput.value);
+                const name = item.querySelector('p.font-medium').textContent;
+                const unit = item.querySelector('p.text-xs').textContent;
 
-            selectedIngredients.set(id, { id, name, unit, quantity });
-        });
-        updateHiddenIngredientsInput();
+                selectedIngredients.set(id, { id, name, unit, quantity });
+            });
+            renderIngredientsList();
+        } else {
+             renderIngredientsList(); // To show empty state
+        }
     }
+
 
     // ========== ADD NEW INGREDIENT HANDLERS ==========
     const addNewIngredientBtn = document.getElementById('add-new-ingredient-btn');
@@ -1095,9 +1117,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Add to allIngredients list
                         allIngredients.push(data.ingredient);
 
-                        // Auto-add to selectedIngredients (user's choice = YES)
-                        selectedIngredients.set(data.ingredient.id, {
-                            id: data.ingredient.id,
+                        // Auto-add to selectedIngredients
+                        selectedIngredients.set(String(data.ingredient.id), {
+                            id: String(data.ingredient.id),
                             name: data.ingredient.name,
                             unit: data.ingredient.unit,
                             quantity: 1  // Default quantity of 1
@@ -1154,3 +1176,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
