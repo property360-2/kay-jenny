@@ -398,6 +398,41 @@ def api_check_product_name(request):
 
 @login_required
 @user_passes_test(is_admin)
+def api_check_ingredient_name(request):
+    """API endpoint to check for duplicate ingredient names"""
+    name = request.GET.get("name", "").strip()
+    ingredient_id = request.GET.get("ingredient_id", None)
+
+    if not name:
+        return JsonResponse({"exists": False})
+
+    # Check for duplicates (case-insensitive)
+    query = Ingredient.objects.filter(name__iexact=name)
+
+    # Exclude current ingredient if editing
+    if ingredient_id:
+        try:
+            query = query.exclude(pk=int(ingredient_id))
+        except (ValueError, TypeError):
+            pass
+
+    exists = query.exists()
+
+    if exists:
+        duplicate = query.first()
+        return JsonResponse(
+            {
+                "exists": True,
+                "duplicate_name": duplicate.name,
+                "duplicate_id": duplicate.id,
+            }
+        )
+
+    return JsonResponse({"exists": False})
+
+
+@login_required
+@user_passes_test(is_admin)
 def product_archive(request, pk):
     """Archive a product"""
     product = get_object_or_404(Product, pk=pk)

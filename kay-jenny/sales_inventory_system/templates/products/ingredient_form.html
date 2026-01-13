@@ -35,6 +35,7 @@
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-fjc-blue-500 focus:border-fjc-blue-500"
                         placeholder="e.g., Tomato Sauce, Mozzarella Cheese"
                     />
+                    <div id="name-validation-message" class="mt-1 text-sm text-red-600"></div>
                 </div>
 
                 <!-- Description -->
@@ -154,18 +155,69 @@
 
 {% block extra_js %}
 <script>
-// Add button loading states on form submission
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
+    const nameInput = document.getElementById('name');
+    const validationMessage = document.getElementById('name-validation-message');
+    const submitBtn = document.getElementById('ingredientSubmitBtn');
+    const ingredientId = '{{ ingredient.id|default_if_none:"" }}';
+    let debounceTimer;
+
+    // Function to check ingredient name via API
+    const checkName = () => {
+        const name = nameInput.value.trim();
+        if (name === '') {
+            validationMessage.textContent = '';
+            submitBtn.disabled = false;
+            return;
+        }
+
+        // Construct the API URL
+        let url = `{% url 'products:api_check_ingredient_name' %}?name=${encodeURIComponent(name)}`;
+        if (ingredientId) {
+            url += `&ingredient_id=${ingredientId}`;
+        }
+
+        // Fetch API to check for duplicates
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    validationMessage.innerHTML = `
+                        <span class="font-semibold">Ingredient already exists.</span>
+                        <a href="/products/ingredients/${data.duplicate_id}/edit/" target="_blank" class="ml-2 text-fjc-blue-600 hover:underline">
+                            View Existing
+                        </a>`;
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('cursor-not-allowed', 'opacity-50');
+                } else {
+                    validationMessage.textContent = '';
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('cursor-not-allowed', 'opacity-50');
+                }
+            })
+            .catch(error => {
+                console.error('Error checking ingredient name:', error);
+                validationMessage.textContent = 'Could not validate name.';
+                submitBtn.disabled = false; // Allow submission on API error
+                submitBtn.classList.remove('cursor-not-allowed', 'opacity-50');
+            });
+    };
+
+    // Add event listener with debounce
+    nameInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(checkName, 300); // 300ms delay
+    });
+
     if (form) {
         form.addEventListener('submit', function(e) {
-            const submitBtn = document.getElementById('ingredientSubmitBtn');
             if (submitBtn) {
                 const submitBtnText = document.getElementById('ingredientSubmitBtnText');
                 const originalText = submitBtnText.textContent;
 
                 submitBtn.disabled = true;
-                submitBtnText.textContent = '<span class="material-icons">schedule</span> Saving...';
+                submitBtnText.innerHTML = '<div class="flex items-center gap-2"><svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Saving...</div>';
                 submitBtn.classList.add('opacity-75', 'cursor-not-allowed');
 
                 // Auto-restore button after 30 seconds (fallback)
